@@ -211,6 +211,7 @@ struct TreeStruct {
             new_node.generate_mob_intents = false;
             new_node.probability = 1.0;
             //new_node.child.clear();
+            new_node.composite_objective = new_node.GetMaxFinalObjective();
             for (int i = 0; i < 5; ++i) {
                 if (!node.monster[i].Exists()) {
                     continue;
@@ -275,24 +276,29 @@ struct TreeStruct {
     }
     // change the tree such that the top node only makes choices which end up
     // at the path node
+    // update composite_object/tree_solved of nodes below top node
     void SelectTerminalDecisionPath(Node & top_node, Node & path_node) {
         assert(path_node.IsBattleDone());
         assert(path_node.tree_solved);
+        assert(path_node.child.empty());
         Node * node_ptr = &path_node;
-        while (node_ptr != &top_node) {
+        while (node_ptr->parent != &top_node) {
             assert(node_ptr != nullptr);
             assert(node_ptr->parent != nullptr);
-            auto & parent = *(node_ptr->parent);
+            Node & node = *node_ptr;
+            Node & parent = *node_ptr->parent;
+            assert(parent.player_choice);
             // delete all other children except for this one
             assert(parent.child.size() >= 1);
             if (parent.child.size() != 1) {
-                parent.child.clear();
-                parent.child.push_back(node_ptr);
+                parent.child[0] = &node;
+                parent.child.resize(1);
             } else {
                 assert(parent.child[0] == node_ptr);
             }
             // update objectives
-            parent.composite_objective = node_ptr->composite_objective;
+            parent.composite_objective = node.composite_objective;
+            assert(node.tree_solved);
             parent.tree_solved = true;
             node_ptr = &parent;
         }
@@ -300,6 +306,8 @@ struct TreeStruct {
     // find player choice nodes
     void FindPlayerChoices(Node & top_node, bool is_critical) {
         top_node.player_choice = true;
+        // hold pointer to last item in all_nodes
+        Node * const last_stored_node_ptr = *all_nodes.rbegin();
         //std::cout << "\nExpanding: " << ToString() << "\n";
         // nodes we must make a decision at
         std::vector<Node *> decision_nodes;
@@ -307,7 +315,7 @@ struct TreeStruct {
         // nodes at which the player no longer has a choice
         // (e.g. after pressing end turn or after player or all mobs are dead)
         std::vector<Node *> terminal_node;
-        bool dead_node = false;
+        //bool dead_node = false;
         // expand all decision nodes
         while (!decision_nodes.empty()) {
             // loop through each node we need to expand
@@ -318,17 +326,17 @@ struct TreeStruct {
                 Node & new_node = CreateChild(this_node, false, false);
                 new_node.probability = 1.0;
                 new_node.EndTurn();
-                if (new_node.hp == 0) {
-                    dead_node = true;
-                    //printf("Dead!\n");
-                }
+                //if (new_node.hp == 0) {
+                //    dead_node = true;
+                //    //printf("Dead!\n");
+                //}
                 // if this path ends the battle at the best possible objective,
                 // choose and and don't evaluate other decisions
                 if (new_node.IsBattleDone() &&
                         new_node.GetMaxFinalObjective() ==
                         top_node.GetMaxFinalObjective()) {
                     SelectTerminalDecisionPath(top_node, new_node);
-                    top_node.UpdateParents();
+                    //top_node.UpdateParents();
                     return;
                 }
                 terminal_node.push_back(&new_node);
@@ -358,7 +366,7 @@ struct TreeStruct {
                                     new_node.GetMaxFinalObjective() ==
                                     top_node.GetMaxFinalObjective()) {
                                 SelectTerminalDecisionPath(top_node, new_node);
-                                top_node.UpdateParents();
+                                //top_node.UpdateParents();
                                 return;
                             }
                             // add to exhaust or discard pile
@@ -386,7 +394,7 @@ struct TreeStruct {
                                 new_node.GetMaxFinalObjective() ==
                                 top_node.GetMaxFinalObjective()) {
                             SelectTerminalDecisionPath(top_node, new_node);
-                            top_node.UpdateParents();
+                            //top_node.UpdateParents();
                             return;
                         }
                         if (card.exhausts) {
@@ -404,12 +412,11 @@ struct TreeStruct {
             }
             decision_nodes = new_decision_nodes;
         }
-        if (false && dead_node) {
-            top_node.PrintTree();
-        }
-        // cound
-
+        //if (false && dead_node) {
+        //    top_node.PrintTree();
+        //}
         // find nodes which are equal or worse than another node and remove them
+        // once a node is marked bad, don't use it as a comparison
         std::vector<bool> bad_node(terminal_node.size(), false);
         for (std::size_t i = 0; i < terminal_node.size(); ++i) {
             if (bad_node[i]) {
@@ -427,28 +434,30 @@ struct TreeStruct {
                 }
             }
         }
-        // count good/bad/dead nodes
-        uint16_t bad_terminal_node_count = 0;
-        uint16_t good_terminal_node_count = 0;
-        uint16_t dead_terminal_node_count = 0;
+        // number of nodes to remove from the tree
+        uint16_t bad_node_count = 0;
+        // number of nodes to keep in the tree
+        uint16_t good_node_count = 0;
+        // number of nodes in the tree which end in death
+        uint16_t dead_node_count = 0;
         Node * good_terminal_node_ptr = nullptr;
         for (std::size_t i = 0; i < terminal_node.size(); ++i) {
             Node & node_i = *terminal_node[i];
             if (bad_node[i]) {
-                ++bad_terminal_node_count;
+                ++bad_node_count;
                 continue;
             }
-            ++good_terminal_node_count;
+            ++good_node_count;
             good_terminal_node_ptr = &node_i;
             if (node_i.IsDead()) {
-                ++dead_terminal_node_count;
+                ++dead_node_count;
             }
         }
         //top_node.PrintTree();
         //printf("good=%u, bad=%u, dead=%u\n", good_terminal_node_count, bad_terminal_node_count, dead_terminal_node_count);
         // if options exist where we don't die, mark options where we die as bad
-        if (good_terminal_node_count > dead_terminal_node_count &&
-                dead_terminal_node_count > 0) {
+        if (good_node_count > dead_node_count &&
+                dead_node_count > 0) {
             for (std::size_t i = 0; i < terminal_node.size(); ++i) {
                 Node & node_i = *terminal_node[i];
                 if (bad_node[i]) {
@@ -457,28 +466,14 @@ struct TreeStruct {
                 if (node_i.IsDead()) {
                     assert(!bad_node[i]);
                     bad_node[i] = true;
-                    --good_terminal_node_count;
-                    ++bad_terminal_node_count;
+                    --good_node_count;
+                    --dead_node_count;
+                    ++bad_node_count;
                 }
             }
-            //printf("Removing choices which end in death\n");
-            //top_node.PrintTree();
-        }
-        if (false && dead_node && terminal_node.size() > 1) {
-            for (std::size_t i = 0; i < terminal_node.size(); ++i) {
-                if (!bad_node[i]) {
-                    std::cout << "--> ";
-                }
-                std::cout << terminal_node[i]->ToString() << "\n";
-            }
-            printf("");
-        }
-        if (false && dead_node && good_terminal_node_count == 1) {
-            printf("");
         }
         // at least one node must be good
-        assert(good_terminal_node_count > 0);
-        //assert(std::find(bad_node.begin(), bad_node.end(), false) != bad_node.end());
+        assert(good_node_count > 0);
         // remove bad choices and their parents where possible
         for (std::size_t i = 0; i < terminal_node.size(); ++i) {
             if (!bad_node[i]) {
@@ -494,31 +489,40 @@ struct TreeStruct {
                 node_ptr = node_ptr->parent;
             }
         }
-        if (false && dead_node) {
-            top_node.PrintTree();
-            printf("");
-        }
-        //if (good_terminal_node_count > dead_terminal_node_count &&
-        //        dead_terminal_node_count > 0) {
-        //    top_node.PrintTree();
-        //    printf("");
-        //}
-
-        // if only one terminal node is left, and it ends the battle, update parents
-        // (this is usually triggered if all choices lead to death)
-        assert(good_terminal_node_count > 0);
-        if (good_terminal_node_count == 1) {
-            if (good_terminal_node_ptr->tree_solved) {
-                //top_node.PrintTree();
-                //top_node_ptr->PrintTree();
-                //printf("");
-                good_terminal_node_ptr->UpdateParents();
-                //top_node_ptr->PrintTree();
-                return;
+        // calculate composite objective of all nodes still in tree
+        for (auto it = all_nodes.rbegin(); *it != last_stored_node_ptr; ++it) {
+            Node & node = **it;
+            // if node is no longer in the tree, skip it
+            // TODO: delete it instead
+            if (!node.HasAncestor(*last_stored_node_ptr)) {
+                // at this point, if node has no children, it should be listed
+                // as a bad node
+                continue;
+            }
+            // at this point, if node has no children, it should be listed
+            // as a good node (i.e. not listed as a bad node)
+            // calculate objective
+            node.composite_objective = node.CalculateCompositeObjective();
+            // propagate solved tree state
+            if (node.child.size() == 1 && node.child[0]->tree_solved) {
+                node.tree_solved = true;
             }
         }
-        // if we're on a critical path and end of battle was found, all paths which
-        // don't end the fight are optional
+        // if only one terminal node is left, and it ends the battle, update parents
+        // (this is usually triggered if all choices lead to death)
+        //assert(good_node_count > 0);
+        //if (good_node_count == 1) {
+        //    if (good_terminal_node_ptr->tree_solved) {
+        //        //top_node.PrintTree();
+        //        //top_node_ptr->PrintTree();
+        //        //printf("");
+        //        good_terminal_node_ptr->UpdateParents();
+        //        //top_node_ptr->PrintTree();
+        //        return;
+        //    }
+        //}
+        // if we're on a critical path and end of battle was found on a good
+        // node, all paths which don't end the fight are optional
         if (is_critical) {
             for (std::size_t i = 0; i < terminal_node.size(); ++i) {
                 if (bad_node[i]) {
@@ -544,6 +548,7 @@ struct TreeStruct {
             return;
         }
         // if we're on a critical path, select choice with best path objective
+        // to add to critical path nodes and add others to optional nodes
         double best_objective = 0.0;
         std::size_t best_objective_index = -1;
         for (std::size_t i = 0; i < terminal_node.size(); ++i) {
@@ -587,6 +592,7 @@ struct TreeStruct {
             for (int i = 0; i < 5; ++i) {
                 new_node.monster[i] = layout.mob[i];
             }
+            new_node.composite_objective = new_node.GetMaxFinalObjective();
         }
     }
     // print the current tree to a file
@@ -627,11 +633,11 @@ struct TreeStruct {
                 printf("Tree stats: expanded=%u, all=%u, critical=%u, optional=%u, terminal=%u\n",
                     expanded_node_count, all_nodes.size(), critical_nodes.size(),
                     optional_nodes.size(), terminal_node_count);
-                printf("all=%u\n",
-                    top_node_ptr->CountNodes());
-                if (top_node_ptr->CountNodes() > 5000) {
-                    PrintTreeToFile("tree2.txt");
-                }
+                //printf("all=%u\n",
+                //    top_node_ptr->CountNodes());
+                //if (top_node_ptr->CountNodes() > 5000) {
+                //    PrintTreeToFile("tree2.txt");
+                //}
                 next_update = clock() + CLOCKS_PER_SEC;
                 stats_shown = true;
                 show_stats = false;
@@ -676,8 +682,9 @@ struct TreeStruct {
                 //std::cout << "Tree has " << top_node_ptr->CountNodes() << " total nodes\n";
                 //std::cout << "Tree has " << top_node_ptr->CountUnsolvedLeaves() << " unsolved nodes\n";
                 //top_node_ptr->PrintTree();
-                top_node_ptr->EstimateCompositeObjective();
                 std::cout << "Lower bound on final objective is " <<
+                    top_node_ptr->EstimateCompositeObjective() << ".\n";
+                std::cout << "Upper bound on final objective is " <<
                     top_node_ptr->composite_objective << ".\n";
                 //top_node_ptr->PrintTree();
                 // The problem is when one choice the player can make is to die but it's (correctly)
@@ -709,23 +716,27 @@ struct TreeStruct {
             if (this_node.turn == 0) {
                 this_node.player_choice = false;
                 GenerateBattle(this_node);
+                this_node.UpdateTree();
                 //top_node_ptr->Verify();
                 continue;
             }
             // if intents need generated, generate them
             if (this_node.generate_mob_intents) {
                 GenerateMobIntents(this_node, is_critical);
+                this_node.UpdateTree();
                 //top_node_ptr->Verify();
                 continue;
             }
             // if cards need drawn, draw them
             if (this_node.cards_to_draw) {
                 DrawCards(this_node, is_critical);
+                this_node.UpdateTree();
                 //top_node_ptr->Verify();
                 continue;
             }
             // else player can play a card or end turn
             FindPlayerChoices(this_node, is_critical);
+            this_node.UpdateTree();
             //top_node_ptr->Verify();
         }
         // tree should now be solved
@@ -914,9 +925,9 @@ int main(int argc, char ** argv) {
     // create top node
     Node top_node;
     top_node.deck = ironclad_starting_deck;
-    top_node.fight_type = kFightAct1EasyCultist;
-    top_node.fight_type = kFightAct1EliteLagavulin;
     top_node.fight_type = kFightAct1EliteGremlinNob;
+    //top_node.fight_type = kFightAct1EliteLagavulin;
+    //top_node.fight_type = kFightAct1EliteGremlinNob;
     top_node.max_hp = 75;
     top_node.hp = (uint16_t) (top_node.max_hp * 0.9);
 

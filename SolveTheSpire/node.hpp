@@ -127,6 +127,8 @@ struct Node {
                 x -= monster[i].hp;
             }
         }
+        // favor evaluating later turns
+        x += turn * 10;
         return x;
     }
     // return best possible ultimate objective function for a child of this node
@@ -145,30 +147,30 @@ struct Node {
         composite_objective = hp;
     }
     // calculate composite objective for a tree with multiple paths
-    void CalculateCompositeObjective() {
-        assert(child.size() >= 1);
-        assert(!player_choice);
-        double max_objective = child[0]->composite_objective;
-        double min_objective = max_objective;
-        composite_objective = 0.0;
-        for (auto child_ptr : child) {
-            assert(child_ptr->tree_solved);
-            composite_objective +=
-                child_ptr->probability * child_ptr->composite_objective;
-            if (child_ptr->composite_objective > max_objective) {
-                max_objective = child_ptr->composite_objective;
-            }
-            if (child_ptr->composite_objective < min_objective) {
-                min_objective = child_ptr->composite_objective;
-            }
-        }
-        // in order to avoid roundoff errors causing a different value if all
-        // children have the same objective, we check this manually
-        if (min_objective == max_objective) {
-            composite_objective = min_objective;
-        }
-        tree_solved = true;
-    }
+    //void CalculateCompositeObjective() {
+    //    assert(child.size() >= 1);
+    //    assert(!player_choice);
+    //    double max_objective = child[0]->composite_objective;
+    //    double min_objective = max_objective;
+    //    composite_objective = 0.0;
+    //    for (auto child_ptr : child) {
+    //        assert(child_ptr->tree_solved);
+    //        composite_objective +=
+    //            child_ptr->probability * child_ptr->composite_objective;
+    //        if (child_ptr->composite_objective > max_objective) {
+    //            max_objective = child_ptr->composite_objective;
+    //        }
+    //        if (child_ptr->composite_objective < min_objective) {
+    //            min_objective = child_ptr->composite_objective;
+    //        }
+    //    }
+    //    // in order to avoid roundoff errors causing a different value if all
+    //    // children have the same objective, we check this manually
+    //    if (min_objective == max_objective) {
+    //        composite_objective = min_objective;
+    //    }
+    //    tree_solved = true;
+    //}
     // initialize a start of fight node
     // (only things that need initialized outside of this are:
     // hp, max_hp, fight_type, deck
@@ -176,7 +178,6 @@ struct Node {
         assert(hp > 0);
         assert(max_hp >= hp);
         assert(!deck.IsEmpty());
-        assert(turn == 0);
 
         turn = 0;
         block = 0;
@@ -191,7 +192,7 @@ struct Node {
         composite_objective = GetMaxFinalObjective();
     }
     // estimate composite objective for a tree with at least one solved child
-    void EstimateCompositeObjective() {
+    double EstimateCompositeObjective() {
         // get a list of final states and probability of reaching each one
         std::list<std::pair<double, Node *>> end_states;
         FindTerminalLeaves(1.0, end_states);
@@ -202,10 +203,11 @@ struct Node {
         if (abs(check - 1.0) > 1e-10) {
             printf("ERROR: total probability (%g) not 1\n", check);
         }
-        composite_objective = 0.0;
+        double result = 0.0;
         for (auto & item : end_states) {
-            composite_objective += item.first * item.second->composite_objective;
+            result += item.first * item.second->composite_objective;
         }
+        return result;
     }
     // return total number of nodes including this one and below it
     std::size_t CountNodes() {
@@ -233,6 +235,9 @@ struct Node {
     bool HasAncestor(Node & that) {
         Node * node_ptr = this;
         while (node_ptr != &that) {
+            if (node_ptr->parent == nullptr) {
+                return false;
+            }
             assert(node_ptr->parent != nullptr);
             if (node_ptr->IsOrphan()) {
                 return false;
@@ -257,8 +262,8 @@ struct Node {
         // if terminal node, objective is easy
         assert(!child.empty());
         if (child.empty()) {
+            assert(tree_solved);
             CalculateFinalObjective();
-            composite_objective = hp;
             tree_solved = true;
         } else if (child.size() == 1) {
             // pretty sure we always are in this case
@@ -274,7 +279,8 @@ struct Node {
                         return false;
                     }
                 }
-                CalculateCompositeObjective();
+                composite_objective = CalculateCompositeObjective();
+                tree_solved = true;
             }
             // if it is a player choice, make the best decision
             if (player_choice) {
@@ -329,17 +335,189 @@ struct Node {
         return true;
     }
     // update parents to prune bad choice and/or mark trees as solved
-    void UpdateParents() {
-        // should only be called if this tree is solved
-        assert(tree_solved);
-        Node * node_ptr = this;
-        while (node_ptr->parent != nullptr) {
-            Node & parent = *node_ptr->parent;
-            // if only one child, easy enough to calculate
-            if (!parent.SolveTree()) {
-                break;
+    //void UpdateParents() {
+    //    // should only be called if this tree is solved
+    //    assert(tree_solved);
+    //    Node * node_ptr = this;
+    //    while (node_ptr->parent != nullptr) {
+    //        Node & parent = *node_ptr->parent;
+    //        // if only one child, easy enough to calculate
+    //        if (!parent.SolveTree()) {
+    //            break;
+    //        }
+    //        node_ptr = &parent;
+    //    }
+    //}
+    // return an estimate for the composite objective by looking at direct children
+    double CalculateCompositeObjective() {
+        // if no children, just get max
+        if (child.empty()) {
+            return GetMaxFinalObjective();
+        }
+        // if one child, just return objective from that child
+        if (child.size() == 1) {
+            return child[0]->composite_objective;
+        }
+        // if children and players choice, return max
+        if (player_choice) {
+            double max_objective = child[0]->composite_objective;
+            //std::size_t max_objective_index = 0;
+            for (std::size_t i = 1; i < child.size(); ++i) {
+                if (child[i]->composite_objective > max_objective) {
+                    max_objective = child[i]->composite_objective;
+                    //max_objective_index = i;
+                }
             }
-            node_ptr = &parent;
+            return max_objective;
+        } else {
+            // if not player choice, then return probability adjusted composite
+            double objective = child[0]->probability * child[0]->composite_objective;
+            double max_objective = child[0]->composite_objective;
+            double min_objective = max_objective;
+            for (std::size_t i = 1; i < child.size(); ++i) {
+                objective += child[i]->probability * child[i]->composite_objective;
+                if (child[i]->composite_objective > max_objective) {
+                    max_objective = child[i]->composite_objective;
+                    //max_objective_index = i;
+                } else if (child[i]->composite_objective < min_objective) {
+                    min_objective = child[i]->composite_objective;
+                    //max_objective_index = i;
+                }
+            }
+            // to prevent roundoff errors from propagating
+            if (max_objective == min_objective) {
+                objective = max_objective;
+            }
+            return objective;
+        }
+    }
+    // return true if all children are solved
+    bool AreChildrenSolved() {
+        assert(!child.empty());
+        for (auto & it : child) {
+            if (!it->tree_solved) {
+                return false;
+            }
+        }
+        return true;
+    }
+    // update this node.  if we find changes, update parents until we no
+    // longer find changes.  This is only ever called on nodes with children.
+    void UpdateTree() {
+        // doesn't make sense to call this on a solved node
+        assert(!tree_solved);
+        // if terminal node, objective is easy
+        assert(!child.empty());
+        // if only one child, objective is the same as that child
+        if (child.size() == 1) {
+            // if it's different, update and update parent
+            if (composite_objective != child[0]->composite_objective ||
+                   tree_solved != child[0]->tree_solved) {
+                composite_objective = child[0]->composite_objective;
+                tree_solved = child[0]->tree_solved;
+                if (parent != nullptr) {
+                    parent->UpdateTree();
+                }
+            }
+            return;
+        }
+        assert(child.size() > 1);
+        // if not player choice, objective is probability weighted average of
+        // children and tree is solved iff all children are solved
+        if (!player_choice) {
+            double x = CalculateCompositeObjective();
+            bool solved = AreChildrenSolved();
+            if (composite_objective != x || tree_solved != solved) {
+                composite_objective = x;
+                tree_solved = solved;
+                if (parent != nullptr) {
+                    parent->UpdateTree();
+                }
+            }
+            return;
+        }
+        // if a player choice
+        // (1) if all children are solved, choose the best one
+        // (2) if no children are solved, objective is the highest child objective
+        // (3) if some children are solved, eliminate unsolved paths with
+        //     max objectives at or below the max solved objective
+        bool solved_children = false;
+        double max_solved_objective = 0.0;
+        std::size_t max_solved_objective_index = 0;
+        bool unsolved_children = false;
+        double max_unsolved_objective = 0.0;
+        for (std::size_t i = 0; i < child.size(); ++i) {
+            const Node & this_child = *child[i];
+            if (this_child.tree_solved) {
+                if (!solved_children ||
+                    this_child.composite_objective > max_solved_objective) {
+                    max_solved_objective = this_child.composite_objective;
+                    max_solved_objective_index = i;
+                }
+                solved_children = true;
+            } else {
+                unsolved_children = true;
+                max_unsolved_objective =
+                    std::max(max_unsolved_objective,
+                        this_child.composite_objective);
+            }
+        }
+        // (1) if all children solved, choose the best one
+        if (!unsolved_children) {
+            // delete other children
+            child[0] = child[max_solved_objective_index];
+            child.resize(1);
+            assert(!tree_solved);
+            tree_solved = true;
+            assert(child[0]->composite_objective == max_solved_objective);
+            composite_objective = max_solved_objective;
+            if (parent != nullptr) {
+                parent->UpdateTree();
+            }
+            return;
+        }
+        // (2) if no children are solved, objective is the highest child objective
+        if (!solved_children) {
+            if (composite_objective != max_unsolved_objective) {
+                    composite_objective = max_unsolved_objective;
+                if (parent != nullptr) {
+                    parent->UpdateTree();
+                }
+            }
+            return;
+        }
+        // (3) if some children are solved, eliminate unsolved paths with
+        //     max objectives below the max solved objective and also
+        //     eliminate solved paths that are not optimal
+        assert(solved_children && unsolved_children);
+        {
+            std::size_t i = child.size();
+            while (i > 0) {
+                assert(i > 0);
+                --i;
+                const Node & this_child = *child[i];
+                if ((this_child.tree_solved &&
+                    i != max_solved_objective_index) ||
+                    (!this_child.tree_solved &&
+                        this_child.composite_objective <= max_solved_objective)) {
+                    child.erase(child.begin() + i);
+                    continue;
+                }
+            }
+        }
+        // if path is now solved, mark it as such
+        if (solved_children && child.size() == 1) {
+            tree_solved = true;
+        } else {
+            assert(max_unsolved_objective > max_solved_objective);
+        }
+        // if objective changed, update parents
+        double x = std::max(max_unsolved_objective, max_solved_objective);
+        if (tree_solved || x > composite_objective) {
+            composite_objective = x;
+            if (parent != nullptr) {
+                parent->UpdateTree();
+            }
         }
     }
     // finish battle in which player is still alive
@@ -528,9 +706,11 @@ struct Node {
             hp -= damage;
         }
     }
-    //
+    // process the end turn action
+    // (simulate end of turn and mob actions)
     void EndTurn() {
         // set tree information
+        player_choice = false;
         parent_decision.type = kDecisionEndTurn;
         // discard all cards
         discard_pile.AddCard(hand);

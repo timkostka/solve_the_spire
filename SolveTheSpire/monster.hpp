@@ -230,7 +230,7 @@ IntentPossibilites GetIntentGremlinNob(Monster & mob) {
 // base models for each mob are below
 BaseMonster base_mob_gremlin_nob = {
     "Gremlin Nob",
-    {50, 50}, //{85, 90},
+    {80, 80}, //{85, 90},
     {
         {"Bellow", {{kActionBuff, kBuffEnrage, 3}}},
         {"Rush", {{kActionAttack, 16}}},
