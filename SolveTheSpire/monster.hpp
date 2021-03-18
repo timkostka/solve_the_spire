@@ -203,7 +203,7 @@ IntentPossibilites GetIntentLagavulin(Monster & mob) {
 // base models for each mob are below
 BaseMonster base_mob_lagavulin = {
     "Lagavulin",
-    {40, 40}, //{112, 115},
+    {70, 70}, //{112, 115},
     {
         {"Sleep", {{kActionNone}}},
         {"Attack", {{kActionAttack, 20}}},
@@ -230,7 +230,7 @@ IntentPossibilites GetIntentGremlinNob(Monster & mob) {
 // base models for each mob are below
 BaseMonster base_mob_gremlin_nob = {
     "Gremlin Nob",
-    {80, 80}, //{85, 90},
+    {85, 85}, //{85, 90},
     {
         {"Bellow", {{kActionBuff, kBuffEnrage, 3}}},
         {"Rush", {{kActionAttack, 16}}},

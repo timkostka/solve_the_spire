@@ -100,6 +100,8 @@ struct Node {
     // maximum possible composite objective
     // (if tree_solved=true, this is the final composite objective)
     double composite_objective;
+    // path objective (used to sort optional nodes for evaluating)
+    double path_objective;
     // default constructor
     Node() {
         tree_solved = false;
@@ -120,6 +122,8 @@ struct Node {
         return battle_done;
     }
     // return an objective function used to evaluate the best decision
+    // this function may only use information within this node--no information
+    // from children is allowed
     double GetPathObjective() const {
         double x = 5.0 * hp;
         for (int i = 0; i < 5; ++i) {
@@ -128,7 +132,7 @@ struct Node {
             }
         }
         // favor evaluating later turns
-        x += turn * 10;
+        x += turn * 1000;
         return x;
     }
     // return best possible ultimate objective function for a child of this node
@@ -190,6 +194,7 @@ struct Node {
         buff.Reset();
         tree_solved = false;
         composite_objective = GetMaxFinalObjective();
+        path_objective = GetPathObjective();
     }
     // estimate composite objective for a tree with at least one solved child
     double EstimateCompositeObjective() {
@@ -1175,8 +1180,12 @@ struct Node {
     // print out completed tree stats
     void PrintStats() {
         std::cout << "Top node: " << ToString() << "\n";
-        std::cout << "Tree has " << CountNodes() << " nodes.\n";
-        std::cout << "Tree has " << CountNodes() << " nodes.\n";
+        std::cout << "Children:\n";
+        for (auto it : child) {
+            std::cout << "- " << it->ToString() << "\n";
+        }
+        std::cout << "\n";
+        std::cout << "Solution tree has " << CountNodes() << " nodes.\n";
         // get a list of final states and probability of reaching each one
         std::list<std::pair<double, Node *>> end_states;
         // walk tree

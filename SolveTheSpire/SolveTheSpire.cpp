@@ -104,7 +104,13 @@ std::list<MobLayout> GenerateAllMobs(FightEnum fight_type) {
     }
 }
 
-
+struct PathObjectiveSort {
+    bool operator() (Node * const first, Node * const second) const {
+        return (first->path_objective > second->path_objective) ||
+            (first->path_objective == second->path_objective &&
+                first < second);
+    }
+};
 
 struct TreeStruct {
     // pointer to top node
@@ -112,18 +118,27 @@ struct TreeStruct {
     // list of all created nodes
     std::list<Node *> all_nodes;
     // nodes which need expanded first
+    // (since all must be evaluated, no need to sort them)
     std::list<Node *> critical_nodes;
     // nodes which need expanded after a path is formed
-    std::list<Node *> optional_nodes;
+    std::set<Node *, PathObjectiveSort> optional_nodes;
+    //std::list<Node *> optional_nodes;
     // number of nodes which were expanded
     uint32_t expanded_node_count;
     // number of terminal nodes found
-    uint32_t terminal_node_count;
+    //uint32_t terminal_node_count;
     // number of nodes expanded with multiple choices
     // (this is not incremented if one choice is strictly better)
     uint32_t node_choice_count;
     // constructor
     TreeStruct(Node & node) : top_node_ptr(&node) {
+    }
+    // add an optional node
+    void AddOptionalNode(Node & node) {
+        // should have already been evaluated
+        assert(node.path_objective == node.GetPathObjective());
+        // add it
+        optional_nodes.insert(&node);
     }
     // create a new node and return the pointer
     Node & CreateChild(Node & node, bool add_to_critical, bool add_to_optional) {
@@ -141,7 +156,8 @@ struct TreeStruct {
         if (add_to_critical) {
             critical_nodes.push_back(&new_node);
         } else if (add_to_optional) {
-            optional_nodes.push_back(&new_node);
+            AddOptionalNode(new_node);
+            //optional_nodes.push_back(&new_node);
         }
         return new_node;
     }
@@ -164,24 +180,25 @@ struct TreeStruct {
             }
         }
         // prune all_nodes
+        // go in reverse order to ensure children are erased before parents
         std::size_t prune_count = 0;
         {
-            auto it = all_nodes.begin();
-            while (it != all_nodes.end()) {
+            auto it = all_nodes.end();
+            while (it != all_nodes.begin()) {
+                --it;
                 Node & node = **it;
                 if (!node.HasAncestor(top_node)) {
-                    delete & node;
+                    delete &node;
+                    auto it2 = it;
                     it = all_nodes.erase(it);
                     ++prune_count;
-                } else {
-                    ++it;
                 }
             }
         }
-        printf("Pruned %u/%u (%.3g%%) nodes in %.3g seconds\n",
-            prune_count,
-            all_nodes.size() + prune_count,
+        printf("Pruned %.3g%% (%u/%u) of nodes in %.3g seconds\n",
             100.0 * prune_count / (all_nodes.size() + prune_count),
+            (unsigned int) prune_count,
+            (unsigned int) (all_nodes.size() + prune_count),
             watch.GetTime());
         //printf("Pruned %u (%.3g%%) nodes from optional_nodes\n",
         //    prune_count_1,
@@ -303,6 +320,35 @@ struct TreeStruct {
             node_ptr = &parent;
         }
     }
+    // add node pointers to set
+    // (helper function used during FindPlayerChoices)
+    void AddNodesToSet(Node & node, std::set<Node *> & node_set) {
+        node_set.insert(&node);
+        for (auto this_child : node.child) {
+            node_set.insert(this_child);
+            AddNodesToSet(*this_child, node_set);
+        }
+    }
+    // delete nodes which are no longer in tree
+    // (helper function used during FindPlayerChoices)
+    void DeleteUnusedPlayerChoices(
+            Node & top_node, Node * const last_stored_node_ptr) {
+        std::size_t deleted_count = 0;
+        std::size_t kept_count = 0;
+        // store used nodes into set
+        std::set<Node *> used_node;
+        AddNodesToSet(top_node, used_node);
+        // go through nodes and delete unused ones
+        auto it = all_nodes.end();
+        while (*(--it) != last_stored_node_ptr) {
+            Node * node_ptr = *it;
+            if (used_node.find(node_ptr) == used_node.end()) {
+                delete node_ptr;
+                it = all_nodes.erase(it);
+            }
+        }
+    }
+    // 
     // find player choice nodes
     void FindPlayerChoices(Node & top_node, bool is_critical) {
         top_node.player_choice = true;
@@ -336,6 +382,7 @@ struct TreeStruct {
                         new_node.GetMaxFinalObjective() ==
                         top_node.GetMaxFinalObjective()) {
                     SelectTerminalDecisionPath(top_node, new_node);
+                    DeleteUnusedPlayerChoices(top_node, last_stored_node_ptr);
                     //top_node.UpdateParents();
                     return;
                 }
@@ -366,6 +413,8 @@ struct TreeStruct {
                                     new_node.GetMaxFinalObjective() ==
                                     top_node.GetMaxFinalObjective()) {
                                 SelectTerminalDecisionPath(top_node, new_node);
+                                DeleteUnusedPlayerChoices(
+                                    top_node, last_stored_node_ptr);
                                 //top_node.UpdateParents();
                                 return;
                             }
@@ -394,6 +443,8 @@ struct TreeStruct {
                                 new_node.GetMaxFinalObjective() ==
                                 top_node.GetMaxFinalObjective()) {
                             SelectTerminalDecisionPath(top_node, new_node);
+                            DeleteUnusedPlayerChoices(
+                                top_node, last_stored_node_ptr);
                             //top_node.UpdateParents();
                             return;
                         }
@@ -453,8 +504,6 @@ struct TreeStruct {
                 ++dead_node_count;
             }
         }
-        //top_node.PrintTree();
-        //printf("good=%u, bad=%u, dead=%u\n", good_terminal_node_count, bad_terminal_node_count, dead_terminal_node_count);
         // if options exist where we don't die, mark options where we die as bad
         if (good_node_count > dead_node_count &&
                 dead_node_count > 0) {
@@ -493,7 +542,6 @@ struct TreeStruct {
         for (auto it = all_nodes.rbegin(); *it != last_stored_node_ptr; ++it) {
             Node & node = **it;
             // if node is no longer in the tree, skip it
-            // TODO: delete it instead
             if (!node.HasAncestor(*last_stored_node_ptr)) {
                 // at this point, if node has no children, it should be listed
                 // as a bad node
@@ -534,6 +582,8 @@ struct TreeStruct {
                 }
             }
         }
+        // delete unused nodes
+        DeleteUnusedPlayerChoices(top_node, last_stored_node_ptr);
         // if not on a critical path, all decisions are optional
         if (!is_critical) {
             for (std::size_t i = 0; i < terminal_node.size(); ++i) {
@@ -541,8 +591,10 @@ struct TreeStruct {
                     continue;
                 }
                 Node & this_node = *terminal_node[i];
+                this_node.path_objective = this_node.GetPathObjective();
                 if (!this_node.IsBattleDone()) {
-                    optional_nodes.push_back(&this_node);
+                    //optional_nodes.push_back(&this_node);
+                    AddOptionalNode(this_node);
                 }
             }
             return;
@@ -557,15 +609,18 @@ struct TreeStruct {
             }
             assert(!terminal_node[i]->IsBattleDone());
             double objective = terminal_node[i]->GetPathObjective();
+            terminal_node[i]->path_objective = objective;
             if (best_objective_index == -1) {
                 best_objective = objective;
                 best_objective_index = i;
             } else if (objective > best_objective) {
-                optional_nodes.push_back(terminal_node[best_objective_index]);
+                //optional_nodes.push_back(terminal_node[best_objective_index]);
+                AddOptionalNode(*terminal_node[best_objective_index]);
                 best_objective = objective;
                 best_objective_index = i;
             } else {
-                optional_nodes.push_back(terminal_node[i]);
+                //optional_nodes.push_back(terminal_node[i]);
+                AddOptionalNode(*terminal_node[i]);
             }
         }
         assert(best_objective_index != -1);
@@ -607,6 +662,7 @@ struct TreeStruct {
     }
     // expand this tree
     void Expand() {
+        std::clock_t start_clock = clock();
         std::cout << "Expanding node: " << top_node_ptr->ToString() << "\n\n";
         assert(all_nodes.empty());
         all_nodes.push_back(top_node_ptr);
@@ -614,12 +670,14 @@ struct TreeStruct {
         critical_nodes.push_back(top_node_ptr);
         optional_nodes.clear();
         expanded_node_count = 0;
-        terminal_node_count = 0;
+        //terminal_node_count = 0;
         node_choice_count = 0;
         bool critical_path = true;
         std::clock_t next_update = clock();
         bool stats_shown = false;
         bool show_stats = true;
+
+        std::size_t max_node_count = 0;
 
         //top_node_ptr->Verify(); // DEBUG
 
@@ -630,9 +688,11 @@ struct TreeStruct {
             // update every second
             stats_shown = false;
             if (show_stats || clock() >= next_update) {
-                printf("Tree stats: expanded=%u, all=%u, critical=%u, optional=%u, terminal=%u\n",
-                    expanded_node_count, all_nodes.size(), critical_nodes.size(),
-                    optional_nodes.size(), terminal_node_count);
+                printf("Tree stats: expanded=%u, all=%u, critical=%u, optional=%u\n",
+                    expanded_node_count,
+                    all_nodes.size(),
+                    critical_nodes.size(),
+                    optional_nodes.size());
                 //printf("all=%u\n",
                 //    top_node_ptr->CountNodes());
                 //if (top_node_ptr->CountNodes() > 5000) {
@@ -644,9 +704,19 @@ struct TreeStruct {
             }
             // prune tree periodically
             if (all_nodes.size() >= prune_cutoff) {
+                // if we're still on the critical path, no nodes can be pruned
+                if (critical_path) {
+                    prune_cutoff = all_nodes.size() * 2;
+                    printf("New pruning cutoff is %u\n", (unsigned int) prune_cutoff);
+                    continue;
+                }
                 show_stats = true;
                 if (!stats_shown) {
                     continue;
+                }
+                // update max nodes present
+                if (all_nodes.size() > max_node_count) {
+                    max_node_count = all_nodes.size();
                 }
                 Prune();
                 if (all_nodes.size() * 2 > prune_cutoff) {
@@ -661,6 +731,7 @@ struct TreeStruct {
                     show_stats = true;
                     continue;
                 }
+                Prune();
                 break;
             }
             // find next node to expand and do it
@@ -702,10 +773,17 @@ struct TreeStruct {
             if (!is_critical) {
                 //exit(0);
             }
-            std::list<Node *> & this_list = (is_critical) ?
-                critical_nodes : optional_nodes;
-            Node & this_node = **this_list.begin();
-            this_list.pop_front();
+            Node * this_node_ptr = nullptr;
+            if (!critical_nodes.empty()) {
+                this_node_ptr = *critical_nodes.begin();
+                critical_nodes.pop_front();
+            } else {
+                this_node_ptr = *optional_nodes.begin();
+                optional_nodes.erase(optional_nodes.begin());
+            }
+            //std::list<Node *> & this_list = (is_critical) ?
+            //    critical_nodes : optional_nodes;
+            Node & this_node = *this_node_ptr;
             // see if this node is in the list
             if (!is_critical && !this_node.HasAncestor(*top_node_ptr)) {
                 //printf("Ignoring orphaned node\n");
@@ -740,13 +818,20 @@ struct TreeStruct {
             //top_node_ptr->Verify();
         }
         // tree should now be solved
+        const double duration = (double) (clock() - start_clock) / CLOCKS_PER_SEC;
         std::cout << "\n\n\n";
         std::cout << "Printing solved tree to tree.txt\n";
+        std::cout << "Solution took " << duration << " seconds.\n";
         // print solved tree to file
         {
             std::ofstream outFile("tree.txt");
             std::streambuf * oldCoutStreamBuf = std::cout.rdbuf();
             std::cout.rdbuf(outFile.rdbuf());
+            top_node_ptr->PrintStats();
+            std::cout << "Max nodes present was " << max_node_count << ".\n";
+            std::cout << "Solution took " << duration << " seconds.\n";
+            std::cout << "Current date/time is " << __TIME__ << " on " __DATE__ << "\n";
+            std::cout << "\n";
             top_node_ptr->PrintTree();
             std::cout.rdbuf(oldCoutStreamBuf);
             outFile.close();
@@ -754,9 +839,10 @@ struct TreeStruct {
         //std::cout << "\n";
         top_node_ptr->PrintStats();
         top_node_ptr->Verify();
-        printf("Tree stats: expanded=%u, all=%u, critical=%u, optional=%u, terminal=%u\n",
+        std::cout << "Max nodes present was " << max_node_count << ".\n";
+        printf("Tree stats: expanded=%u, all=%u, critical=%u, optional=%u\n",
             expanded_node_count, all_nodes.size(), critical_nodes.size(),
-            optional_nodes.size(), terminal_node_count);
+            optional_nodes.size());
     }
 };
 
@@ -893,6 +979,7 @@ struct TreeStruct {
 //    }
 //}
 
+// entry point
 int main(int argc, char ** argv) {
     std::cout << "sizeof(Node)=" << sizeof(Node) << std::endl;
     std::cout << "Can fit " << 1073741824 / sizeof(Node) << " nodes per GB\n";
@@ -925,9 +1012,10 @@ int main(int argc, char ** argv) {
     // create top node
     Node top_node;
     top_node.deck = ironclad_starting_deck;
-    top_node.fight_type = kFightAct1EliteGremlinNob;
+    //top_node.fight_type = kFightAct1EasyCultist;
     //top_node.fight_type = kFightAct1EliteLagavulin;
     //top_node.fight_type = kFightAct1EliteGremlinNob;
+    top_node.fight_type = kFightAct1EliteGremlinNob;
     top_node.max_hp = 75;
     top_node.hp = (uint16_t) (top_node.max_hp * 0.9);
 
