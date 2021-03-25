@@ -31,7 +31,7 @@ struct MobLayout {
     // probability
     double probability;
     // monsters
-    Monster mob[5];
+    Monster mob[MAX_MOBS_PER_NODE];
 };
 
 // return all possible monsters from the base
@@ -56,7 +56,7 @@ std::vector<std::pair<double, Monster>> GenerateMob(BaseMonster & base) {
 
 // generate mob layouts for a given fight
 std::list<MobLayout> GenerateAllMobs(FightEnum fight_type) {
-    BaseMonster * base_mob[5] = {nullptr};
+    BaseMonster * base_mob[MAX_MOBS_PER_NODE] = {nullptr};
     if (fight_type == kFightAct1EasyCultist) {
         base_mob[0] = &base_mob_cultist;
     } else if (fight_type == kFightAct1EasyJawWorm) {
@@ -70,8 +70,8 @@ std::list<MobLayout> GenerateAllMobs(FightEnum fight_type) {
         assert(false);
     }
     // find options for all mobs
-    std::vector<std::pair<double, Monster>> mob[5];
-    for (int i = 0; i < 5; ++i) {
+    std::vector<std::pair<double, Monster>> mob[MAX_MOBS_PER_NODE];
+    for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
         if (base_mob[i] == nullptr) {
             mob[i].push_back(std::pair<double, Monster>(1.0, Monster()));
         } else {
@@ -80,13 +80,13 @@ std::list<MobLayout> GenerateAllMobs(FightEnum fight_type) {
     }
     // generate all combinations
     std::list<MobLayout> result;
-    uint16_t index[5] = {0};
+    uint16_t index[MAX_MOBS_PER_NODE] = {0};
     while (true) {
         // add this combination
         result.push_back(MobLayout());
         MobLayout & layout = *result.rbegin();
         layout.probability = 1.0;
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             layout.probability *= mob[i][index[i]].first;
             layout.mob[i] = mob[i][index[i]].second;
         }
@@ -96,7 +96,7 @@ std::list<MobLayout> GenerateAllMobs(FightEnum fight_type) {
         while (index[i] == mob[i].size()) {
             index[i] = 0;
             ++i;
-            if (i == 5) {
+            if (i == MAX_MOBS_PER_NODE) {
                 return result;
             }
             ++index[i];
@@ -132,6 +132,8 @@ struct TreeStruct {
     uint32_t node_choice_count;
     // constructor
     TreeStruct(Node & node) : top_node_ptr(&node) {
+        expanded_node_count = 0;
+        node_choice_count = 0;
     }
     // add an optional node
     void AddOptionalNode(Node & node) {
@@ -213,15 +215,15 @@ struct TreeStruct {
         assert(node.generate_mob_intents);
         node.player_choice = false;
         // hold new intent list for all mobs
-        std::vector<std::pair<double, uint8_t>> new_intent[5];
-        for (int i = 0; i < 5; ++i) {
+        std::vector<std::pair<double, uint8_t>> new_intent[MAX_MOBS_PER_NODE];
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             if (!node.monster[i].Exists()) {
                 continue;
             }
             new_intent[i] = node.monster[i].GetIntents();
         }
         // now create all child nodes
-        uint8_t intent_index[5] = {0};
+        uint8_t intent_index[MAX_MOBS_PER_NODE] = {0};
         while (true) {
             // add this node
             Node & new_node = CreateChild(node, is_critical, !is_critical);
@@ -229,7 +231,7 @@ struct TreeStruct {
             new_node.probability = 1.0;
             //new_node.child.clear();
             new_node.composite_objective = new_node.GetMaxFinalObjective();
-            for (int i = 0; i < 5; ++i) {
+            for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
                 if (!node.monster[i].Exists()) {
                     continue;
                 }
@@ -239,7 +241,7 @@ struct TreeStruct {
             }
             // increment
             bool done = true;
-            for (int i = 0; i < 5; ++i) {
+            for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
                 ++intent_index[i];
                 if (intent_index[i] >= new_intent[i].size()) {
                     intent_index[i] = 0;
@@ -261,6 +263,7 @@ struct TreeStruct {
         if (node.draw_pile.IsEmpty() && !node.discard_pile.IsEmpty()) {
             // add new node
             Node & new_node = CreateChild(node, is_critical, !is_critical);
+            new_node.probability = 1.0;
             // move discard pile to draw pile
             new_node.draw_pile = new_node.discard_pile;
             new_node.discard_pile.Clear();
@@ -391,14 +394,14 @@ struct TreeStruct {
                 for (std::size_t i = 0; i < this_node.hand.card.size(); ++i) {
                     // alias the card
                     auto & card = *card_index[this_node.hand.card[i].first];
-                    // skip this card if it's too expensive
-                    if (card.cost > this_node.energy) {
+                    // skip this card if it's unplayable or too expensive
+                    if (card.IsUnplayable() || card.cost > this_node.energy) {
                         continue;
                     }
                     // play this card
-                    if (card.targeted) {
+                    if (card.IsTargeted()) {
                         // if targeted, cycle among all possible targets
-                        for (int m = 0; m < 5; ++m) {
+                        for (int m = 0; m < MAX_MOBS_PER_NODE; ++m) {
                             if (!this_node.monster[m].Exists()) {
                                 continue;
                             }
@@ -419,7 +422,7 @@ struct TreeStruct {
                                 return;
                             }
                             // add to exhaust or discard pile
-                            if (card.exhausts) {
+                            if (card.Exhausts()) {
                                 new_node.exhaust_pile.AddCard(index);
                             } else {
                                 new_node.discard_pile.AddCard(index);
@@ -448,7 +451,7 @@ struct TreeStruct {
                             //top_node.UpdateParents();
                             return;
                         }
-                        if (card.exhausts) {
+                        if (card.Exhausts()) {
                             new_node.exhaust_pile.AddCard(index);
                         } else {
                             new_node.discard_pile.AddCard(index);
@@ -539,21 +542,25 @@ struct TreeStruct {
             }
         }
         // calculate composite objective of all nodes still in tree
-        for (auto it = all_nodes.rbegin(); *it != last_stored_node_ptr; ++it) {
-            Node & node = **it;
-            // if node is no longer in the tree, skip it
-            if (!node.HasAncestor(*last_stored_node_ptr)) {
+        // and delete unused nodes
+        {
+            auto it = all_nodes.end();
+            while (*(--it) != last_stored_node_ptr) {
+                Node & node = **it;
+                // if node is no longer in the tree, delete it
+                if (!node.HasAncestor(top_node)) {
+                    delete &node;
+                    it = all_nodes.erase(it);
+                    continue;
+                }
                 // at this point, if node has no children, it should be listed
-                // as a bad node
-                continue;
-            }
-            // at this point, if node has no children, it should be listed
-            // as a good node (i.e. not listed as a bad node)
-            // calculate objective
-            node.composite_objective = node.CalculateCompositeObjective();
-            // propagate solved tree state
-            if (node.child.size() == 1 && node.child[0]->tree_solved) {
-                node.tree_solved = true;
+                // as a good node (i.e. not listed as a bad node)
+                // calculate objective
+                node.composite_objective = node.CalculateCompositeObjective();
+                // propagate solved tree state
+                if (node.child.size() == 1 && node.child[0]->tree_solved) {
+                    node.tree_solved = true;
+                }
             }
         }
         // if only one terminal node is left, and it ends the battle, update parents
@@ -582,8 +589,6 @@ struct TreeStruct {
                 }
             }
         }
-        // delete unused nodes
-        DeleteUnusedPlayerChoices(top_node, last_stored_node_ptr);
         // if not on a critical path, all decisions are optional
         if (!is_critical) {
             for (std::size_t i = 0; i < terminal_node.size(); ++i) {
@@ -644,7 +649,7 @@ struct TreeStruct {
             Node & new_node = CreateChild(this_node, true, false);
             new_node.StartBattle();
             new_node.probability = layout.probability;
-            for (int i = 0; i < 5; ++i) {
+            for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
                 new_node.monster[i] = layout.mob[i];
             }
             new_node.composite_objective = new_node.GetMaxFinalObjective();
@@ -685,14 +690,22 @@ struct TreeStruct {
         std::size_t prune_cutoff = 1000;
         // expand nodes until they're all done
         while (true) {
+            //if (!top_node_ptr->Verify()) {
+            //    PrintTreeToFile("error_tree.txt");
+            //    exit(0);
+            //}
             // update every second
             stats_shown = false;
             if (show_stats || clock() >= next_update) {
-                printf("Tree stats: expanded=%u, all=%u, critical=%u, optional=%u\n",
-                    expanded_node_count,
-                    all_nodes.size(),
-                    critical_nodes.size(),
-                    optional_nodes.size());
+                std::cout << "Tree stats: expanded=" << expanded_node_count <<
+                    ", all=" << all_nodes.size() <<
+                    ", critical=" << critical_nodes.size() <<
+                    ", optional=" << optional_nodes.size() << std::endl;
+                    //printf("Tree stats: expanded=%u, all=%u, critical=%u, optional=%u\n",
+                    //expanded_node_count,
+                    //all_nodes.size(),
+                    //critical_nodes.size(),
+                    //optional_nodes.size());
                 //printf("all=%u\n",
                 //    top_node_ptr->CountNodes());
                 //if (top_node_ptr->CountNodes() > 5000) {
@@ -706,8 +719,8 @@ struct TreeStruct {
             if (all_nodes.size() >= prune_cutoff) {
                 // if we're still on the critical path, no nodes can be pruned
                 if (critical_path) {
-                    prune_cutoff = all_nodes.size() * 2;
-                    printf("New pruning cutoff is %u\n", (unsigned int) prune_cutoff);
+                    prune_cutoff = (std::size_t) (all_nodes.size() * 1.1);
+                    //printf("New pruning cutoff is %u\n", (unsigned int) prune_cutoff);
                     continue;
                 }
                 show_stats = true;
@@ -719,19 +732,20 @@ struct TreeStruct {
                     max_node_count = all_nodes.size();
                 }
                 Prune();
-                if (all_nodes.size() * 2 > prune_cutoff) {
-                    prune_cutoff = all_nodes.size() * 2;
-                    printf("New pruning cutoff is %u\n", (unsigned int) prune_cutoff);
+                //prune_cutoff = (std::size_t) (all_nodes.size() * 1.5);
+                if (all_nodes.size() * (double) 1.5 > prune_cutoff) {
+                    prune_cutoff = (std::size_t) (all_nodes.size() * 1.5);
+                    //printf("New pruning cutoff is %u\n", (unsigned int) prune_cutoff);
                 }
                 continue;
             }
             // if we're done, show stats and exit
             if (!critical_path && optional_nodes.empty()) {
+                Prune();
                 if (!stats_shown) {
                     show_stats = true;
                     continue;
                 }
-                Prune();
                 break;
             }
             // find next node to expand and do it
@@ -744,10 +758,10 @@ struct TreeStruct {
                 critical_path = false;
                 std::cout << "Expanded all critical nodes.  "
                     << "All paths have an end.\n";
-                printf("Tree stats: all=%u, total=%u, orphaned=%u, unsolved=%u\n",
+                printf("Tree stats: all=%u, total=%u, unsolved=%u\n",
                     (unsigned int) all_nodes.size(),
                     (unsigned int) top_node_ptr->CountNodes(),
-                    (unsigned int) CountOrphanedNodes(),
+                    //(unsigned int) CountOrphanedNodes(),
                     (unsigned int) top_node_ptr->CountUnsolvedLeaves());
                 //std::cout << "Tree has " << CountOrphanedNodes() << " orphaned nodes\n";
                 //std::cout << "Tree has " << top_node_ptr->CountNodes() << " total nodes\n";
@@ -757,6 +771,11 @@ struct TreeStruct {
                     top_node_ptr->EstimateCompositeObjective() << ".\n";
                 std::cout << "Upper bound on final objective is " <<
                     top_node_ptr->composite_objective << ".\n";
+                if (all_nodes.size() < 100000) {
+                    PrintTreeToFile("critical_tree.txt");
+                }
+                //top_node_ptr->Verify();
+                //exit(0);
                 //top_node_ptr->PrintTree();
                 // The problem is when one choice the player can make is to die but it's (correctly)
                 // deemed not the best choice.  This leads to two choices in the path which never
@@ -821,163 +840,27 @@ struct TreeStruct {
         const double duration = (double) (clock() - start_clock) / CLOCKS_PER_SEC;
         std::cout << "\n\n\n";
         std::cout << "Printing solved tree to tree.txt\n";
-        std::cout << "Solution took " << duration << " seconds.\n";
+        std::cout << "Solution took " << duration << " seconds\n";
+        top_node_ptr->PrintStats();
+        std::cout << "Max nodes present was " << max_node_count << "\n";
         // print solved tree to file
         {
             std::ofstream outFile("tree.txt");
             std::streambuf * oldCoutStreamBuf = std::cout.rdbuf();
             std::cout.rdbuf(outFile.rdbuf());
             top_node_ptr->PrintStats();
-            std::cout << "Max nodes present was " << max_node_count << ".\n";
+            std::cout << "Max nodes present was " << max_node_count << "\n";
+            std::cout << "Expanded " << expanded_node_count << " nodes\n";
             std::cout << "Solution took " << duration << " seconds.\n";
-            std::cout << "Current date/time is " << __TIME__ << " on " __DATE__ << "\n";
+            std::cout << "Compiled on " << __DATE__ << " at " __TIME__ << "\n";
             std::cout << "\n";
             top_node_ptr->PrintTree();
             std::cout.rdbuf(oldCoutStreamBuf);
             outFile.close();
         }
-        //std::cout << "\n";
-        top_node_ptr->PrintStats();
         top_node_ptr->Verify();
-        std::cout << "Max nodes present was " << max_node_count << ".\n";
-        printf("Tree stats: expanded=%u, all=%u, critical=%u, optional=%u\n",
-            expanded_node_count, all_nodes.size(), critical_nodes.size(),
-            optional_nodes.size());
     }
 };
-
-//// attempt to fill the tree
-//void fill_tree(Node & top_node) {
-//    // create the tree structure
-//    TreeStruct tree(top_node);
-//    // list of all created nodes
-//    std::list<Node> all_nodes;
-//    // nodes indices which need expanded
-//    std::list<Node *> recent_node;
-//    // add top level node to recent nodes
-//    all_nodes.push_back(top_node);
-//    recent_node.push_back(&*all_nodes.begin());
-//    // number of expanded nodes
-//    uint32_t expanded_node_count = 0;
-//    // number of nodes left to expand
-//    // loop until all nodes are expanded
-//    while (!recent_node.empty()) {
-//        //std::cout << std::endl;
-//        printf("Tree stats: %u/%u\n", expanded_node_count, recent_node.size());
-//        //(*all_nodes.begin()).PrintTree(false);
-//        // find most promising node and expand it
-//        Node & node = **recent_node.begin();
-//        recent_node.pop_front();
-//        ++expanded_node_count;
-//        // if just starting, create new node
-//        if (node.turn == 0) {
-//            node.player_choice = false;
-//            all_nodes.push_back(node);
-//            Node & new_node = *all_nodes.rbegin();
-//            recent_node.push_back(&new_node);
-//            new_node.StartBattle();
-//            node.AddChild(new_node);
-//            continue;
-//        }
-//        // if intents need generated, generate them
-//        if (node.generate_mob_intents) {
-//            node.player_choice = false;
-//            // hold new intent list for all mobs
-//            std::vector<std::pair<double, uint8_t>> new_intent[5];
-//            for (int i = 0; i < 5; ++i) {
-//                if (!node.monster[i].Exists()) {
-//                    continue;
-//                }
-//                new_intent[i] = node.monster[i].GetIntents();
-//            }
-//            // now create all child nodes
-//            uint8_t intent_index[5] = {0};
-//            while (true) {
-//                // add this node
-//                all_nodes.push_back(node);
-//                Node & new_node = *all_nodes.rbegin();
-//                recent_node.push_back(&new_node);
-//                new_node.generate_mob_intents = false;
-//                new_node.probability = 1.0;
-//                new_node.child.clear();
-//                for (int i = 0; i < 5; ++i) {
-//                    if (!node.monster[i].Exists()) {
-//                        continue;
-//                    }
-//                    new_node.monster[i].SelectIntent(new_intent[i][intent_index[i]].second);
-//                    new_node.probability *= new_intent[i][intent_index[i]].first;
-//                }
-//                node.AddChild(new_node);
-//                // increment
-//                bool done = true;
-//                for (int i = 0; i < 5; ++i) {
-//                    ++intent_index[i];
-//                    if (intent_index[i] >= new_intent[i].size()) {
-//                        intent_index[i] = 0;
-//                    } else {
-//                        done = false;
-//                        break;
-//                    }
-//                }
-//                if (done) {
-//                    break;
-//                }
-//            }
-//            continue;
-//        }
-//        // if cards need drawn, draw them
-//        if (node.cards_to_draw > 0) {
-//            node.player_choice = false;
-//            // if draw pile is empty, move cards from discard to draw pile
-//            if (node.draw_pile.IsEmpty() && !node.discard_pile.IsEmpty()) {
-//                // add new node
-//                all_nodes.push_back(node);
-//                Node & new_node = *all_nodes.rbegin();
-//                recent_node.push_back(&new_node);
-//                node.AddChild(new_node);
-//                // move discard pile to draw pile
-//                new_node.draw_pile = new_node.discard_pile;
-//                new_node.discard_pile.Clear();
-//                continue;
-//            }
-//            // draw as many cards as we can
-//            uint16_t to_draw = std::min(node.cards_to_draw, node.draw_pile.Count());
-//            if (node.hand.Count() + to_draw > 10) {
-//                to_draw = 10 - node.hand.Count();
-//            }
-//            // if there aren't any cards to draw, then don't
-//            if (to_draw == 0) {
-//                // add new node
-//                all_nodes.push_back(node);
-//                Node & new_node = *all_nodes.rbegin();
-//                recent_node.push_back(&new_node);
-//                node.AddChild(new_node);
-//                // we have no cards to draw
-//                new_node.cards_to_draw = 0;
-//                continue;
-//            }
-//            // else draw all cards we can and add each as a child node
-//            auto choices = node.draw_pile.Select(to_draw);
-//            for (const auto & choice : choices) {
-//                // add new node
-//                all_nodes.push_back(node);
-//                Node & new_node = *all_nodes.rbegin();
-//                recent_node.push_back(&new_node);
-//                new_node.cards_to_draw -= to_draw;
-//                new_node.probability = choice.first;
-//                new_node.hand.AddCard(choice.second.first);
-//                new_node.draw_pile = choice.second.second;
-//                new_node.child.clear();
-//                // add this
-//                node.AddChild(new_node);
-//            }
-//            continue;
-//        }
-//        // if player can choose, play cards until we run out of energy
-//        // store nodes we need to expand
-//        node.FindChoiceNodes(all_nodes, recent_node);
-//    }
-//}
 
 // entry point
 int main(int argc, char ** argv) {
@@ -1012,10 +895,15 @@ int main(int argc, char ** argv) {
     // create top node
     Node top_node;
     top_node.deck = ironclad_starting_deck;
+    //top_node.deck.AddCard(card_flex);
+    //top_node.deck.AddCard(card_sword_boomerang);
+    //top_node.deck.AddCard(card_inflame);
+    //top_node.deck.RemoveCard(card_strike.GetIndex());
     //top_node.fight_type = kFightAct1EasyCultist;
-    //top_node.fight_type = kFightAct1EliteLagavulin;
+    //top_node.fight_type = kFightAct1EasyJawWorm;
+    top_node.fight_type = kFightAct1EliteLagavulin;
     //top_node.fight_type = kFightAct1EliteGremlinNob;
-    top_node.fight_type = kFightAct1EliteGremlinNob;
+    //top_node.fight_type = kFightAct1EasyJawWorm;
     top_node.max_hp = 75;
     top_node.hp = (uint16_t) (top_node.max_hp * 0.9);
 

@@ -14,6 +14,9 @@
 #include "buff_state.hpp"
 #include "monster.hpp"
 
+// max number of mobs per node
+#define MAX_MOBS_PER_NODE 1
+
 // enum for a decision
 enum DecisionTypeEnum : uint8_t {
     kDecisionUnused = 0,
@@ -69,7 +72,7 @@ struct Node {
     // true if new mob intents need generated
     bool generate_mob_intents;
     // monsters (in order of action)
-    Monster monster[5];
+    Monster monster[MAX_MOBS_PER_NODE];
     // player energy
     uint16_t energy;
     // buffs
@@ -126,7 +129,7 @@ struct Node {
     // from children is allowed
     double GetPathObjective() const {
         double x = 5.0 * hp;
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             if (monster[i].Exists()) {
                 x -= monster[i].hp;
             }
@@ -236,6 +239,15 @@ struct Node {
         }
         return count;
     }
+    // return true if this node is an orphan
+    bool IsOrphan() {
+        for (auto & child_ptr : parent->child) {
+            if (child_ptr == this) {
+                return false;
+            }
+        }
+        return true;
+    }
     // return true if this node has the given ancestor
     bool HasAncestor(Node & that) {
         Node * node_ptr = this;
@@ -243,20 +255,10 @@ struct Node {
             if (node_ptr->parent == nullptr) {
                 return false;
             }
-            assert(node_ptr->parent != nullptr);
             if (node_ptr->IsOrphan()) {
                 return false;
             }
             node_ptr = node_ptr->parent;
-        }
-        return true;
-    }
-    // return true if this node is an orphan
-    bool IsOrphan() {
-        for (auto & child_ptr : parent->child) {
-            if (child_ptr == this) {
-                return false;
-            }
         }
         return true;
     }
@@ -530,7 +532,7 @@ struct Node {
         assert(!battle_done);
         assert(hp > 0);
         // no mobs should be present
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             assert(!monster[i].Exists());
         }
         // increase hp by up to 6
@@ -616,6 +618,9 @@ struct Node {
             ss << ", ";
         }
         ss << "hp=" << hp << "/" << max_hp;
+        if (turn == 0) {
+            ss << ", deck=" << deck.ToString();
+        }
         if (turn != 0 && cards_to_draw) {
             ss << ", to_draw=" << cards_to_draw;
         }
@@ -626,7 +631,7 @@ struct Node {
             ss << ", energy=" << energy;
             ss << ", hand=" << hand.ToString();
         }
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             if (!monster[i].Exists()) {
                 continue;
             }
@@ -717,11 +722,20 @@ struct Node {
         // set tree information
         player_choice = false;
         parent_decision.type = kDecisionEndTurn;
-        // discard all cards
+        // exhaust all ethereal cards
+        for (int i = 0; i < hand.card.size(); ++i) {
+            const Card & card = *card_index[hand.card[i].first];
+            if (card.IsEthereal()) {
+                exhaust_pile.AddCard(hand.card[i].first, hand.card[i].second);
+                hand.RemoveCard(hand.card[i].first, hand.card[i].second);
+                --i;
+            }
+        }
+        // discard all remaining cards
         discard_pile.AddCard(hand);
         hand.Clear();
         // remove block on mobs
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             auto & mob = monster[i];
             if (!mob.Exists()) {
                 continue;
@@ -729,7 +743,7 @@ struct Node {
             mob.block = 0;
         }
         // do mob actions
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             auto & mob = monster[i];
             if (!mob.Exists()) {
                 continue;
@@ -766,7 +780,7 @@ struct Node {
             }
         }
         // cycle mob buffs
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             auto & mob = monster[i];
             if (!mob.Exists()) {
                 continue;
@@ -789,7 +803,7 @@ struct Node {
     }
     // return true if any mobs are alive
     bool MobsAlive() const {
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             if (monster[i].Exists()) {
                 return true;
             }
@@ -816,7 +830,7 @@ struct Node {
         assert(energy >= card.cost);
         energy -= card.cost;
         auto & mob = monster[target];
-        if (card.targeted) {
+        if (card.IsTargeted()) {
             assert(mob.Exists());
         }
         // do actions
@@ -826,7 +840,7 @@ struct Node {
             }
             switch (action.type) {
                 case kActionAttack:
-                    assert(card.targeted);
+                    assert(card.IsTargeted());
                     for (int16_t i = 0; i < action.arg[1]; ++i) {
                         if (mob.Exists()) {
                             mob.Attack(action.arg[0] + buff[kBuffStrength]);
@@ -846,9 +860,9 @@ struct Node {
                     }
                     break;
                 case kActionAttackAll:
-                    assert(!card.targeted);
+                    assert(!card.IsTargeted());
                     for (int16_t i = 0; i < action.arg[1]; ++i) {
-                        for (int16_t m = 0; m < 5; ++m) {
+                        for (int16_t m = 0; m < MAX_MOBS_PER_NODE; ++m) {
                             auto & this_mob = monster[m];
                             if (this_mob.Exists()) {
                                 this_mob.Attack(action.arg[0] + buff[kBuffStrength]);
@@ -880,18 +894,25 @@ struct Node {
                     buff[action.arg[0]] += action.arg[1];
                     break;
                 case kActionDebuff:
-                    assert(card.targeted);
+                    assert(card.IsTargeted());
                     if (mob.Exists()) {
                         mob.buff[action.arg[0]] += action.arg[1];
                     }
                     break;
                 case kActionDebuffAll:
-                    for (int i = 0; i < 5; ++i) {
+                    assert(!card.IsTargeted());
+                    for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
                         if (!monster[i].Exists()) {
                             continue;
                         }
                         monster[i].buff[action.arg[0]] += action.arg[1];
                     }
+                    break;
+                case kActionAddCardToDrawPile:
+                    draw_pile.AddCard(action.arg[0]);
+                    break;
+                case kActionAddCardToDiscardPile:
+                    discard_pile.AddCard(action.arg[0]);
                     break;
                 default:
                     assert(false);
@@ -926,13 +947,10 @@ struct Node {
         if (energy > that.energy) {
             return false;
         }
-        if (energy > that.energy) {
-            return false;
-        }
         if (cards_to_draw != that.cards_to_draw) {
             return false;
         }
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             auto & mob = monster[i];
             auto & that_mob = that.monster[i];
             if (!mob.Exists()) {
@@ -945,11 +963,11 @@ struct Node {
             if (mob.hp < that_mob.hp) {
                 return false;
             }
-            if (mob.buff != that_mob.buff) {
+            if (!mob.buff.MobIsWorseOrEqual(that_mob.buff)) {
                 return false;
             }
         }
-        if (buff != that.buff) {
+        if (!buff.PlayerIsWorseOrEqual(that.buff)) {
             return false;
         }
         return true;
@@ -1137,10 +1155,11 @@ struct Node {
             }
         }
     }
-    // verify this node
-    void Verify() {
+    // verify this node and return true if everything checks out
+    bool Verify() {
+        bool pass = true;
         if (child.empty()) {
-            return;
+            return true;
         }
         if (player_choice && tree_solved) {
             assert(child.size() == 1);
@@ -1151,12 +1170,14 @@ struct Node {
             if (player_choice) {
                 assert(ptr->probability == 1.0);
             }
-            ptr->Verify();
+            pass = pass && ptr->Verify();
             p += ptr->probability;
         }
         if (!player_choice) {
             if (abs(p - 1.0) > 1e-10) {
+                pass = false;
                 printf("ERROR: probability (%g) != 1\n", p);
+                PrintTree();
             }
         }
         // if all children are solved, this should be solved as well
@@ -1170,12 +1191,15 @@ struct Node {
             if (tree_solved && !children_solved) {
                 PrintTree();
                 printf("ERROR: incorrectly marked solved\n");
+                pass = false;
             }
             if (!tree_solved && children_solved) {
                 PrintTree();
                 printf("ERROR: incorrectly not marked solved\n");
+                pass = false;
             }
         }
+        return pass;
     }
     // print out completed tree stats
     void PrintStats() {
@@ -1197,6 +1221,8 @@ struct Node {
         if (abs(check - 1.0) > 1e-10) {
             printf("ERROR: total probability (%g) not 1\n", check);
         }
+        // probability of dying
+        double death_chance = 0.0;
         // find probability of each ending objectives
         std::map<double, double> final_objective;
         // find distribution of turns
@@ -1205,6 +1231,9 @@ struct Node {
         for (auto & ptr : end_states) {
             battle_length[ptr.second->turn] += ptr.first;
             final_objective[ptr.second->composite_objective] += ptr.first;
+            if (ptr.second->composite_objective == 0) {
+                death_chance += ptr.first;
+            }
         }
         // get average length
         double average_turns = 0;
@@ -1218,7 +1247,8 @@ struct Node {
             average_objective += it.first * it.second;
         }
         std::cout << "Average final objective is " << average_objective
-            << " (" << final_objective.begin()->first << " in worse case)\n";
+            << " (" << final_objective.begin()->first << " in worst case)\n";
+        std::cout << "Death in " << (death_chance * 100) << "% of cases\n";
     }
 };
 

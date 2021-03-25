@@ -27,6 +27,15 @@ enum ActionType : uint8_t {
     // first argument is buff type
     // second argument is buff amount
     kActionDebuffAll,
+    // add a card to the draw pile
+    // first argument is card index
+    kActionAddCardToDrawPile,
+    // add a card to the exhaust pile
+    // first argument is card index
+    kActionAddCardToDiscardPile,
+    // draw cards
+    // first argument is how many cards to draw
+    kActionDrawCards,
 };
 
 // An action is a single event caused by a card such as damage, or a buff

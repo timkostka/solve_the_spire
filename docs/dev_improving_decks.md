@@ -1,0 +1,1 @@
+A signficant portion of runtime is devoted to creating/deleting nodes.  Out of this time, a significant portion is devoted to copying

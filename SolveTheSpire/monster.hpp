@@ -147,7 +147,7 @@ BaseMonster base_mob_cultist = {
 // get intent of Jaw Worm
 IntentPossibilites GetIntentJawWorm(Monster & mob) {
     IntentPossibilites result;
-    double x = rand() / RAND_MAX;
+    double x = (double) rand() / RAND_MAX;
     if (mob.last_intent[0] == 0) {
         // cannot chomp twice in a row
         result.push_back(std::pair<double, uint8_t>(0.30 / 0.55, 1));
@@ -203,7 +203,7 @@ IntentPossibilites GetIntentLagavulin(Monster & mob) {
 // base models for each mob are below
 BaseMonster base_mob_lagavulin = {
     "Lagavulin",
-    {70, 70}, //{112, 115},
+    {90, 90}, //{112, 115},
     {
         {"Sleep", {{kActionNone}}},
         {"Attack", {{kActionAttack, 20}}},

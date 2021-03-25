@@ -34,38 +34,6 @@ struct CardCollection {
     uint16_t total;
     // list of cards and the count of each
     std::vector<std::pair<uint16_t, uint16_t>> card;
-    // pairs are (card_index, multiplicity)
-    //std::vector<std::pair<uint16_t, uint16_t>> GetTally() const {
-    //    std::vector<std::pair<uint16_t, uint16_t>> result;
-    //    if (card.empty()) {
-    //        return result;
-    //    }
-    //    // count number of unique cards
-    //    uint8_t unique_count = 1;
-    //    for (std::size_t i = 1; i < card.size(); ++i) {
-    //        if (card[i] != card[i - 1]) {
-    //            ++unique_count;
-    //        }
-    //    }
-    //    result.resize(unique_count);
-    //    for (std::size_t i = 1; i < unique_count; ++i) {
-    //        result[i].first = 0;
-    //        result[i].second = 0;
-    //    }
-    //    std::size_t last_index = 0;
-    //    result[0].first = card[0];
-    //    result[0].second = 1;
-    //    for (std::size_t i = 1; i < card.size(); ++i) {
-    //        if (card[i] != card[i - 1]) {
-    //            ++last_index;
-    //            result[last_index].first = card[i];
-    //            result[last_index].second = 1;
-    //        } else {
-    //            ++result[last_index].second;
-    //        }
-    //    }
-    //    return result;
-    //}
     // constructor
     CardCollection() : total(0) {
     }
@@ -97,7 +65,7 @@ struct CardCollection {
     }
     // add a card
     void AddCard(uint16_t index, uint16_t count = 1) {
-        card.reserve(card.size() + count);
+        //card.reserve(card.size() + count);
         auto it = std::lower_bound(
             card.begin(), card.end(), std::pair<uint16_t, uint16_t>(index, 0));
         if (it == card.end()) {
