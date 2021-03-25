@@ -41,5 +41,8 @@
     <ClInclude Include="stopwatch.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="card_collection_map.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

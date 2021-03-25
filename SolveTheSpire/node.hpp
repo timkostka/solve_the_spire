@@ -8,14 +8,22 @@
 #include <deque>
 #include <algorithm>
 #include <map>
+#include <iostream>
 
 #include "card_collection.hpp"
+#include "card_collection_map.hpp"
 #include "card.hpp"
 #include "buff_state.hpp"
 #include "monster.hpp"
 
 // max number of mobs per node
 #define MAX_MOBS_PER_NODE 1
+
+// map of decks
+// Each node stores a pointer to a deck within this collection rather than
+// storing the entire collection.  This reduces the number of std::vectors
+// within the Node along with the associated create/copy/delete operations.
+//CardCollectionMapStruct card_collections;
 
 // enum for a decision
 enum DecisionTypeEnum : uint8_t {

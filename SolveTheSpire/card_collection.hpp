@@ -1,6 +1,7 @@
 #pragma once
 
 #include "card.hpp"
+#include "card_collection_map.hpp"
 
 #include <cmath>
 #include <utility>
@@ -36,6 +37,24 @@ struct CardCollection {
     std::vector<std::pair<uint16_t, uint16_t>> card;
     // constructor
     CardCollection() : total(0) {
+    }
+    // return a pointer to this deck within the collection
+    const CardCollection * GetMapPointer() {
+        return CardCollectionMap::Find(*this);
+    }
+    // sorting operator
+    bool operator< (const CardCollection & that) const {
+        return card < that.card;
+        /*if (total < that.total) {
+            return true;
+        } else if (total > that.total) {
+            return false;
+        }
+        if (card.size() < that.card.size()) {
+            return true;
+        } else if (card.size() > that.card.size()) {
+            return false;
+        }*/
     }
     // return number of cards in pile
     uint16_t Count() const {
@@ -112,8 +131,12 @@ struct CardCollection {
         // find denominator for probabilities
         // get number of items we can assign past this
         std::vector<uint16_t> space_to_right(unique_card_count, 0);
-        for (std::size_t i = unique_card_count - 1; i > 0; --i) {
-            space_to_right[i - 1] = space_to_right[i] + card[i].second;
+        if (unique_card_count > 0) {
+            std::size_t i = unique_card_count - 1;
+            while (i > 0) {
+                --i;
+                space_to_right[i] = space_to_right[i + 1] + card[i + 1].second;
+            }
         }
         assert(card_count >= count);
         // initialize first list
@@ -190,6 +213,14 @@ struct CardCollection {
             }
         }
     }
+    // return the number of unique subsets
+    std::size_t CountUniqueSubsets() {
+        std::size_t result = 1;
+        for (auto & i : card) {
+            result *= i.second;
+        }
+        return result;
+    }
     // convert deck to a human readable form
     string ToString() const {
         std::stringstream ss;
@@ -197,7 +228,7 @@ struct CardCollection {
         uint16_t count = 0;
         const Card * last_card = nullptr;
         bool first_card = true;
-        for (auto i : card) {
+        for (auto & i : card) {
             if (first_card) {
                 ss << ": ";
                 first_card = false;

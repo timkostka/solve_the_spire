@@ -667,6 +667,8 @@ struct TreeStruct {
     }
     // expand this tree
     void Expand() {
+        std::cout << "There are " << top_node_ptr->deck.CountUniqueSubsets() <<
+            " unique deck subsets\n";
         std::clock_t start_clock = clock();
         std::cout << "Expanding node: " << top_node_ptr->ToString() << "\n\n";
         assert(all_nodes.empty());
@@ -901,8 +903,8 @@ int main(int argc, char ** argv) {
     //top_node.deck.RemoveCard(card_strike.GetIndex());
     //top_node.fight_type = kFightAct1EasyCultist;
     //top_node.fight_type = kFightAct1EasyJawWorm;
-    top_node.fight_type = kFightAct1EliteLagavulin;
-    //top_node.fight_type = kFightAct1EliteGremlinNob;
+    //top_node.fight_type = kFightAct1EliteLagavulin;
+    top_node.fight_type = kFightAct1EliteGremlinNob;
     //top_node.fight_type = kFightAct1EasyJawWorm;
     top_node.max_hp = 75;
     top_node.hp = (uint16_t) (top_node.max_hp * 0.9);
