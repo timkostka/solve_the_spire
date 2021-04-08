@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "defines.h"
 #include "action.hpp"
 #include "buff_state.hpp"
 
@@ -15,20 +16,19 @@ typedef std::vector<std::pair<double, uint8_t>> IntentPossibilites;
 struct Monster;
 typedef IntentPossibilites (*IntentFunction)(Monster &);
 
-// enum for fight type
-enum FightEnum : uint8_t {
-    kFightAct1EasyCultist,
-    kFightAct1EasyJawWorm,
-    kFightAct1EliteLagavulin,
-    kFightAct1EliteGremlinNob,
-};
-
 // monster intent and actions
 struct MonsterIntent {
     // name of intent
     std::string name;
     // actions
     Action action[2];
+};
+
+// base monster flags
+enum MonsterFlag : uint8_t {
+    kMonsterFlagElite = 1 << 0,
+    kMonsterFlagBoss = 1 << 1,
+    kMonsterFlagMinion = 1 << 2,
 };
 
 // a BaseMonster holds information on how to generate a new monster
@@ -41,6 +41,8 @@ struct BaseMonster {
     MonsterIntent intent[3];
     // intent function
     IntentFunction intent_function;
+    // monster flags
+    MonsterFlag flag;
 };
 
 // a Monster holds state information
@@ -51,8 +53,6 @@ struct Monster {
     uint16_t hp;
     // max hp
     uint16_t max_hp;
-    // turn
-    //uint8_t turn;
     // last 2 intents (initialized to 255)
     uint8_t last_intent[3];
     // block amount
@@ -63,7 +63,7 @@ struct Monster {
     Monster() : base(nullptr), hp(0), last_intent{0}, block(0) {
     }
     // construct from base monster
-    Monster(BaseMonster & base_) {
+    Monster(const BaseMonster & base_) {
         base = &base_;
         hp = base->hp_range.first;
         max_hp = hp;
@@ -82,16 +82,13 @@ struct Monster {
     bool Exists() const {
         return base != nullptr && hp > 0;
     }
-    // get attacked for X damage
-    void Attack(uint16_t damage) {
-        // apply vulnerability
-        if (buff.value[kBuffVulnerable]) {
-            damage = (uint16_t) (damage * 1.5);
-        }
+    // take X damage
+    void TakeDamage(uint16_t damage) {
         // reduce block
         if (block) {
             if (block >= damage) {
                 block -= damage;
+                damage = 0;
                 return;
             } else {
                 damage -= block;
@@ -103,13 +100,36 @@ struct Monster {
             hp = 0;
         } else {
             hp -= damage;
+            if (hp > 0 && buff[kBuffCurlUp]) {
+                block += buff[kBuffCurlUp];
+                buff[kBuffCurlUp] = 0;
+            }
         }
+    }
+    // get attacked for X damage
+    void Attack(uint16_t damage) {
+        // apply vulnerability
+        if (buff.value[kBuffVulnerable]) {
+            damage = (uint16_t) (damage * 1.5);
+        }
+        TakeDamage(damage);
     }
     // return true if monster is dead
     bool IsDead() const {
         return hp == 0;
     }
-    // find a new intent
+    // return true if mob is an elite
+    bool IsElite() const {
+        return base->flag & kMonsterFlagElite;
+    }
+    // return true if mob is an elite
+    bool IsBoss() const {
+        return base->flag & kMonsterFlagBoss;
+    }
+    // return true if mob is an elite
+    bool IsMinion() const {
+        return base->flag & kMonsterFlagMinion;
+    }
     // returned as a vector of (probability, intent index)
     std::vector<std::pair<double, uint8_t>> GetIntents() {
         return base->intent_function(*this);
@@ -121,6 +141,73 @@ struct Monster {
         last_intent[0] = intent_index;
     }
 };
+
+// generate possibilities for the given base mob
+std::vector<std::pair<double, Monster>> GenerateMob(const BaseMonster & base) {
+    std::vector<std::pair<double, Monster>> result;
+    // if we're just using an average, return a single mob
+    if (normalize_mob_variation) {
+        result.push_back(std::pair<double, Monster>(1.0, Monster(base)));
+        result.rbegin()->second.hp =
+            (base.hp_range.first + base.hp_range.second) / 2;
+        return result;
+    }
+    // else generate all possible HPs with equal probability
+    uint16_t count = base.hp_range.second - base.hp_range.first + 1;
+    for (int i = 0; i < count; ++i) {
+        result.push_back(std::pair<double, Monster>(1.0 / count, Monster(base)));
+        result.rbegin()->second.hp = base.hp_range.first + i;
+    }
+    return result;
+}
+
+// return all possibilites for generating a red or green louse
+std::vector<std::pair<double, Monster>> GenerateLouse(const BaseMonster & base) {
+    // result
+    std::vector<std::pair<double, Monster>> result = GenerateMob(base);
+    // strength possibilities (effective)
+    {
+        std::vector<std::pair<double, unsigned int>> strength;
+        if (normalize_mob_variation) {
+            strength.push_back(std::pair<double, unsigned int>(1.0, 1));
+        } else {
+            strength.push_back(std::pair<double, unsigned int>(1.0 / 3, 0));
+            strength.push_back(std::pair<double, unsigned int>(1.0 / 3, 1));
+            strength.push_back(std::pair<double, unsigned int>(1.0 / 3, 2));
+        }
+        std::vector<std::pair<double, Monster>> old_result = result;
+        result.clear();
+        for (auto & this_strength : strength) {
+            for (std::pair<double, Monster> item : old_result) {
+                item.second.buff[kBuffStrength] = this_strength.second;
+                item.first *= this_strength.first;
+                result.push_back(item);
+            }
+        }
+    }
+    // curl up possibilities
+    {
+        std::vector<std::pair<double, unsigned int>> curl_up;
+        if (normalize_mob_variation) {
+            curl_up.push_back(std::pair<double, unsigned int>(1.0, 10));
+        } else {
+            curl_up.push_back(std::pair<double, unsigned int>(0.25, 9));
+            curl_up.push_back(std::pair<double, unsigned int>(0.25, 10));
+            curl_up.push_back(std::pair<double, unsigned int>(0.25, 11));
+            curl_up.push_back(std::pair<double, unsigned int>(0.25, 12));
+        }
+        std::vector<std::pair<double, Monster>> old_result = result;
+        result.clear();
+        for (auto & this_curl_up : curl_up) {
+            for (std::pair<double, Monster> item : old_result) {
+                item.second.buff[kBuffCurlUp] = this_curl_up.second;
+                item.first *= this_curl_up.first;
+                result.push_back(item);
+            }
+        }
+    }
+    return result;
+}
 
 // get intent of Cultist
 IntentPossibilites GetIntentCultist(Monster & mob) {
@@ -181,6 +268,42 @@ BaseMonster base_mob_jaw_worm = {
     GetIntentJawWorm,
 };
 
+// get intent of Red Louse
+IntentPossibilites GetIntentRedLouse(Monster & mob) {
+    IntentPossibilites result;
+    if (mob.last_intent[0] == 0 && mob.last_intent[1] == 0) {
+        result.push_back(std::pair<double, uint8_t>(1.0, 1));
+    } else if (mob.last_intent[0] == 1) {
+        result.push_back(std::pair<double, uint8_t>(1.0, 0));
+    } else {
+        result.push_back(std::pair<double, uint8_t>(0.75, 0));
+        result.push_back(std::pair<double, uint8_t>(0.25, 1));
+    }
+    return result;
+}
+
+// base models for each mob are below
+BaseMonster base_mob_red_louse = {
+    "Red Louse",
+    {11, 16},
+    {
+        {"Bite", {{kActionAttack, 6}}},
+        {"Grow", {{kActionBuff, kBuffStrength, 4}}},
+    },
+    GetIntentRedLouse,
+};
+
+// base models for each mob are below
+BaseMonster base_mob_green_louse = {
+    "Green Louse",
+    {12, 18},
+    {
+        {"Bite", {{kActionAttack, 6}}},
+        {"Spit Web", {{kActionDebuff, kBuffWeak, 2}}},
+    },
+    GetIntentRedLouse, // same intent function for red and green
+};
+
 // get intent of Lagavulin
 IntentPossibilites GetIntentLagavulin(Monster & mob) {
     IntentPossibilites result;
@@ -203,7 +326,7 @@ IntentPossibilites GetIntentLagavulin(Monster & mob) {
 // base models for each mob are below
 BaseMonster base_mob_lagavulin = {
     "Lagavulin",
-    {90, 90}, //{112, 115},
+    {112, 112}, //{112, 115},
     {
         {"Sleep", {{kActionNone}}},
         {"Attack", {{kActionAttack, 20}}},
@@ -211,6 +334,7 @@ BaseMonster base_mob_lagavulin = {
                          {kActionDebuff, kBuffDexterity, -2}}},
     },
     GetIntentLagavulin,
+    kMonsterFlagElite,
 };
 
 // get intent of Gremlin Nob
@@ -238,4 +362,5 @@ BaseMonster base_mob_gremlin_nob = {
                          {kActionDebuff, kBuffVulnerable, 2}}},
     },
     GetIntentGremlinNob,
+    kMonsterFlagElite,
 };

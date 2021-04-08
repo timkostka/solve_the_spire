@@ -7,8 +7,10 @@
 #include <sstream>
 #include <fstream>
 
+#include "defines.h"
 #include "card_collection.hpp"
 #include "node.hpp"
+#include "fight.hpp"
 #include "stopwatch.hpp"
 
 /*
@@ -23,9 +25,12 @@ better options.
 
 */
 
-// if true, will use average mob HP (saves much time)
-const bool use_average_mob_hp = true;
 
+// if true, will use average mob HP (saves much time)
+//const bool use_average_mob_hp = true;
+
+// set of all current card collections
+std::set<CardCollection> CardCollectionMap::collection;
 
 struct MobLayout {
     // probability
@@ -39,7 +44,7 @@ struct MobLayout {
 std::vector<std::pair<double, Monster>> GenerateMob(BaseMonster & base) {
     std::vector<std::pair<double, Monster>> result;
     // if we're just using an average, return a single mob
-    if (use_average_mob_hp) {
+    if (normalize_mob_variation) {
         result.push_back(std::pair<double, Monster>(1.0, Monster(base)));
         result.rbegin()->second.hp =
             (base.hp_range.first + base.hp_range.second) / 2;
@@ -61,6 +66,8 @@ std::list<MobLayout> GenerateAllMobs(FightEnum fight_type) {
         base_mob[0] = &base_mob_cultist;
     } else if (fight_type == kFightAct1EasyJawWorm) {
         base_mob[0] = &base_mob_jaw_worm;
+    } else if (fight_type == kFightAct1EasyLouses) {
+        base_mob[0] = &base_mob_gremlin_nob;
     } else if (fight_type == kFightAct1EliteLagavulin) {
         base_mob[0] = &base_mob_lagavulin;
     } else if (fight_type == kFightAct1EliteGremlinNob) {
@@ -135,6 +142,18 @@ struct TreeStruct {
         expanded_node_count = 0;
         node_choice_count = 0;
     }
+    // destructor
+    ~TreeStruct() {
+        assert(critical_nodes.empty());
+        assert(optional_nodes.empty());
+        // delete all nodes except for the top
+        for (auto & node_ptr : all_nodes) {
+            if (node_ptr != top_node_ptr) {
+                delete node_ptr;
+            }
+        }
+        all_nodes.clear();
+    }
     // add an optional node
     void AddOptionalNode(Node & node) {
         // should have already been evaluated
@@ -165,7 +184,7 @@ struct TreeStruct {
     }
     // prune orphaned nodes from the tree
     void Prune() {
-        Node & top_node = *top_node_ptr;
+        const Node & top_node = *top_node_ptr;
         Stopwatch watch;
         // prune optional_nodes
         //std::size_t prune_count_1 = 0;
@@ -191,17 +210,17 @@ struct TreeStruct {
                 Node & node = **it;
                 if (!node.HasAncestor(top_node)) {
                     delete &node;
-                    auto it2 = it;
+                    auto & it2 = it;
                     it = all_nodes.erase(it);
                     ++prune_count;
                 }
             }
         }
-        printf("Pruned %.3g%% (%u/%u) of nodes in %.3g seconds\n",
-            100.0 * prune_count / (all_nodes.size() + prune_count),
-            (unsigned int) prune_count,
-            (unsigned int) (all_nodes.size() + prune_count),
-            watch.GetTime());
+        //printf("Pruned %.3g%% (%u/%u) of nodes in %.3g seconds\n",
+        //    100.0 * prune_count / (all_nodes.size() + prune_count),
+        //    (unsigned int) prune_count,
+        //    (unsigned int) (all_nodes.size() + prune_count),
+        //    watch.GetTime());
         //printf("Pruned %u (%.3g%%) nodes from optional_nodes\n",
         //    prune_count_1,
         //    100.0 * prune_count_1 / (optional_nodes.size() + prune_count_1));
@@ -283,7 +302,7 @@ struct TreeStruct {
             return;
         }
         // else draw all cards we can and add each as a child node
-        auto choices = node.draw_pile.Select(to_draw);
+        auto choices = node.draw_pile.ptr->Select(to_draw);
         for (const auto & choice : choices) {
             // add new node
             Node & new_node = CreateChild(node, is_critical, !is_critical);
@@ -391,9 +410,9 @@ struct TreeStruct {
                 }
                 terminal_node.push_back(&new_node);
                 // play all possible unique cards
-                for (std::size_t i = 0; i < this_node.hand.card.size(); ++i) {
+                for (std::size_t i = 0; i < this_node.hand.ptr->card.size(); ++i) {
                     // alias the card
-                    auto & card = *card_index[this_node.hand.card[i].first];
+                    auto & card = *card_index[this_node.hand.ptr->card[i].first];
                     // skip this card if it's unplayable or too expensive
                     if (card.IsUnplayable() || card.cost > this_node.energy) {
                         continue;
@@ -407,7 +426,7 @@ struct TreeStruct {
                             }
                             Node & new_node = CreateChild(this_node, false, false);
                             new_node.probability = 1.0;
-                            uint16_t index = this_node.hand.card[i].first;
+                            uint16_t index = this_node.hand.ptr->card[i].first;
                             new_node.hand.RemoveCard(index);
                             new_node.PlayCard(index, m);
                             // if this is the best possible objective,
@@ -437,7 +456,7 @@ struct TreeStruct {
                     } else {
                         Node & new_node = CreateChild(this_node, false, false);
                         new_node.probability = 1.0;
-                        uint16_t index = this_node.hand.card[i].first;
+                        uint16_t index = this_node.hand.ptr->card[i].first;
                         new_node.hand.RemoveCard(index);
                         new_node.PlayCard(index);
                         // if this is the best possible objective,
@@ -644,14 +663,43 @@ struct TreeStruct {
     // start new battle and generate mobs
     void GenerateBattle(Node & this_node) {
         assert(this_node.turn == 0);
-        for (auto & layout : GenerateAllMobs(this_node.fight_type)) {
+        //for (auto & layout : GenerateAllMobs(this_node.fight_type)) {
+        //    // create one node per mob layout
+        //    Node & new_node = CreateChild(this_node, true, false);
+        //    new_node.probability = layout.probability;
+        //    for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
+        //        Monster & mob = new_node.monster[i];
+        //        mob = layout.mob[i];
+        //        if (new_node.relics.preserved_insect &&
+        //            new_node.monster[i].IsElite()) {
+        //            uint16_t x = mob.hp / 4;
+        //            mob.hp -= x;
+        //        }
+        //    }
+        //    new_node.StartBattle();
+        //    new_node.composite_objective = new_node.GetMaxFinalObjective();
+        //}
+        auto mob_layouts = fight_map[this_node.fight_type].generation_function();
+        std::cout << "Generated " << mob_layouts.size() << " different mob layouts.\n";
+        for (auto & layout : mob_layouts) {
             // create one node per mob layout
             Node & new_node = CreateChild(this_node, true, false);
-            new_node.StartBattle();
-            new_node.probability = layout.probability;
-            for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
-                new_node.monster[i] = layout.mob[i];
+            new_node.probability = layout.first;
+            if (layout.second.size() > MAX_MOBS_PER_NODE) {
+                std::cout << "ERROR: increase MAX_MOBS_PER_NODE to at least "
+                    << layout.second.size() << std::endl;
+                exit(1);
             }
+            for (int i = 0; i < layout.second.size(); ++i) {
+                Monster & mob = new_node.monster[i];
+                mob = layout.second[i];
+                if (new_node.relics.preserved_insect &&
+                    new_node.monster[i].IsElite()) {
+                    uint16_t x = mob.hp / 4;
+                    mob.hp -= x;
+                }
+            }
+            new_node.StartBattle();
             new_node.composite_objective = new_node.GetMaxFinalObjective();
         }
     }
@@ -667,17 +715,20 @@ struct TreeStruct {
     }
     // expand this tree
     void Expand() {
-        std::cout << "There are " << top_node_ptr->deck.CountUniqueSubsets() <<
+        std::cout << "There are " <<
+            top_node_ptr->deck.ptr->CountUniqueSubsets() <<
             " unique deck subsets\n";
         std::clock_t start_clock = clock();
         std::cout << "Expanding node: " << top_node_ptr->ToString() << "\n\n";
+        if (normalize_mob_variation) {
+            std::cout << "Mob variations in HP and stats are normalized.\n";
+        }
         assert(all_nodes.empty());
         all_nodes.push_back(top_node_ptr);
         critical_nodes.clear();
         critical_nodes.push_back(top_node_ptr);
         optional_nodes.clear();
         expanded_node_count = 0;
-        //terminal_node_count = 0;
         node_choice_count = 0;
         bool critical_path = true;
         std::clock_t next_update = clock();
@@ -725,8 +776,10 @@ struct TreeStruct {
                     //printf("New pruning cutoff is %u\n", (unsigned int) prune_cutoff);
                     continue;
                 }
-                show_stats = true;
-                if (!stats_shown) {
+                if (print_around_pruning) {
+                    show_stats = true;
+                }
+                if (print_around_pruning && !stats_shown) {
                     continue;
                 }
                 // update max nodes present
@@ -734,10 +787,11 @@ struct TreeStruct {
                     max_node_count = all_nodes.size();
                 }
                 Prune();
-                //prune_cutoff = (std::size_t) (all_nodes.size() * 1.5);
-                if (all_nodes.size() * (double) 1.5 > prune_cutoff) {
+                if (prune_cutoff < all_nodes.size() * (double) 1.3) {
+                    prune_cutoff = (std::size_t) (all_nodes.size() * 1.3);
+                }
+                if (prune_cutoff > all_nodes.size() * (double) 1.5) {
                     prune_cutoff = (std::size_t) (all_nodes.size() * 1.5);
-                    //printf("New pruning cutoff is %u\n", (unsigned int) prune_cutoff);
                 }
                 continue;
             }
@@ -773,9 +827,9 @@ struct TreeStruct {
                     top_node_ptr->EstimateCompositeObjective() << ".\n";
                 std::cout << "Upper bound on final objective is " <<
                     top_node_ptr->composite_objective << ".\n";
-                if (all_nodes.size() < 100000) {
-                    PrintTreeToFile("critical_tree.txt");
-                }
+                //if (all_nodes.size() < 100000) {
+                //    PrintTreeToFile("critical_tree.txt");
+                //}
                 //top_node_ptr->Verify();
                 //exit(0);
                 //top_node_ptr->PrintTree();
@@ -788,7 +842,9 @@ struct TreeStruct {
                 //std::cout << "Master tree has " <<
                 //    top_node_ptr->CountUnsolvedLeaves() << " unsolved leaves\n";
                 // restart loop in case no unsolved leaves remain
-                show_stats = true;
+                if (print_around_pruning) {
+                    show_stats = true;
+                }
                 continue;
             }
             if (!is_critical) {
@@ -845,6 +901,11 @@ struct TreeStruct {
         std::cout << "Solution took " << duration << " seconds\n";
         top_node_ptr->PrintStats();
         std::cout << "Max nodes present was " << max_node_count << "\n";
+        std::cout << "Deck map contains " <<
+            CardCollectionMap::collection.size() << " decks\n";
+        //for (auto & it : CardCollectionMap::collection) {
+        //    std::cout << it.ToString() << "\n";
+        //}
         // print solved tree to file
         {
             std::ofstream outFile("tree.txt");
@@ -863,6 +924,69 @@ struct TreeStruct {
         top_node_ptr->Verify();
     }
 };
+
+// get list of relics to compare
+
+// compare relics
+void CompareRelics(const Node & top_node) {
+    std::vector<std::pair<std::string, RelicStruct>> relic_list;
+    // add base case
+    relic_list.push_back(std::pair<std::string, RelicStruct>("base", RelicStruct()));
+    relic_list.rbegin()->second.burning_blood = 1;
+
+    // add differential cases
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "Akabeko";
+    relic_list.rbegin()->second.akabeko = 1;
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "Anchor";
+    relic_list.rbegin()->second.anchor = 1;
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "bag_of_marbles";
+    relic_list.rbegin()->second.bag_of_marbles = 1;
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "bag_of_preparation";
+    relic_list.rbegin()->second.bag_of_preparation = 1;
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "blood_vial";
+    relic_list.rbegin()->second.blood_vial = 1;
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "bronze_scales";
+    relic_list.rbegin()->second.bronze_scales = 1;
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "lantern";
+    relic_list.rbegin()->second.lantern = 1;
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "oddly_smooth_stone";
+    relic_list.rbegin()->second.oddly_smooth_stone = 1;
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "orichalcum";
+    relic_list.rbegin()->second.orichalcum = 1;
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "preserved_insect";
+    relic_list.rbegin()->second.preserved_insect = 1;
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "vajra";
+    relic_list.rbegin()->second.vajra = 1;
+    relic_list.push_back(*relic_list.begin());
+    relic_list.rbegin()->first = "cursed_key";
+    relic_list.rbegin()->second.cursed_key = 1;
+
+    std::ofstream outFile("relic_comparison.txt");
+    std::streambuf * oldCoutStreamBuf = std::cout.rdbuf();
+    outFile << top_node.ToString() << std::endl;
+    for (auto & this_list : relic_list) {
+        // do base case
+        Node this_top_node = top_node;
+        this_top_node.relics = this_list.second;
+        TreeStruct tree(this_top_node);
+        tree.Expand();
+        outFile << this_list.first << ": " << this_top_node.composite_objective << std::endl;
+    }
+    outFile.close();
+
+
+}
 
 // entry point
 int main(int argc, char ** argv) {
@@ -897,21 +1021,30 @@ int main(int argc, char ** argv) {
     // create top node
     Node top_node;
     top_node.deck = ironclad_starting_deck;
-    //top_node.deck.AddCard(card_flex);
+    //top_node.deck.AddCard(card_anger);
     //top_node.deck.AddCard(card_sword_boomerang);
     //top_node.deck.AddCard(card_inflame);
+    //top_node.deck.AddCard(card_carnage);
     //top_node.deck.RemoveCard(card_strike.GetIndex());
     //top_node.fight_type = kFightAct1EasyCultist;
     //top_node.fight_type = kFightAct1EasyJawWorm;
+    top_node.fight_type = kFightAct1EasyLouses;
+    //top_node.fight_type = kFightTestOneLouse;
     //top_node.fight_type = kFightAct1EliteLagavulin;
-    top_node.fight_type = kFightAct1EliteGremlinNob;
+    //top_node.fight_type = kFightAct1EliteGremlinNob;
     //top_node.fight_type = kFightAct1EasyJawWorm;
     top_node.max_hp = 75;
     top_node.hp = (uint16_t) (top_node.max_hp * 0.9);
+    top_node.relics.burning_blood = 1;
+    //top_node.relics.bronze_scales = 1;
+    //top_node.relics.akabeko = 1;
 
     top_node.InitializeStartingNode();
 
     TreeStruct tree(top_node);
     tree.Expand();
+
+    //CompareRelics(top_node);
+    exit(0);
 
 }

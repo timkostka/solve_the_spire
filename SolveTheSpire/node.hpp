@@ -10,14 +10,14 @@
 #include <map>
 #include <iostream>
 
+#include "defines.h"
 #include "card_collection.hpp"
 #include "card_collection_map.hpp"
 #include "card.hpp"
 #include "buff_state.hpp"
 #include "monster.hpp"
-
-// max number of mobs per node
-#define MAX_MOBS_PER_NODE 1
+#include "relics.hpp"
+#include "fight.hpp"
 
 // map of decks
 // Each node stores a pointer to a deck within this collection rather than
@@ -63,20 +63,22 @@ struct Node {
     uint16_t turn;
     // max player HP
     uint16_t max_hp;
+    // relic state
+    RelicStruct relics;
     // current player HP
     uint16_t hp;
     // amount of block
     uint16_t block;
     // pointer to deck
-    CardCollection deck;
+    CardCollectionPtr deck;
     // hand
-    CardCollection hand;
+    CardCollectionPtr hand;
     // draw pile
-    CardCollection draw_pile;
+    CardCollectionPtr draw_pile;
     // discard pile
-    CardCollection discard_pile;
+    CardCollectionPtr discard_pile;
     // exhausted pile
-    CardCollection exhaust_pile;
+    CardCollectionPtr exhaust_pile;
     // true if new mob intents need generated
     bool generate_mob_intents;
     // monsters (in order of action)
@@ -114,11 +116,22 @@ struct Node {
     // path objective (used to sort optional nodes for evaluating)
     double path_objective;
     // default constructor
-    Node() {
-        tree_solved = false;
-        battle_done = false;
-        // TODO
-    }
+    //Node() :
+    //    fight_type(kFightAct1EasyCultist),
+    //    turn(0),
+    //    max_hp(0),
+    //    hp(0),
+    //    block(0),
+    //    deck(),
+    //    hand(),
+    //    draw_pile(),
+    //    tree_solved(false),
+    //    battle_done(false),
+    //    cards_to_draw(0),
+    //    composite_objective(0.0),
+    //    energy(0) {
+    //    // TODO
+    //}
     // add a single child node with 100% probability
     void AddChild(Node & child_node) {
         child.push_back(&child_node);
@@ -151,7 +164,14 @@ struct Node {
         if (IsBattleDone()) {
             return hp;
         }
-        return (hp + 6 > max_hp) ? max_hp : hp + 6;
+        uint16_t top = hp;
+        if (relics.burning_blood) {
+            top += 6;
+        }
+        if (top > max_hp) {
+            top = max_hp;
+        }
+        return top;
     }
     // return the final objective of an end-node
     // (may only be called on terminal nodes)
@@ -248,7 +268,7 @@ struct Node {
         return count;
     }
     // return true if this node is an orphan
-    bool IsOrphan() {
+    bool IsOrphan() const {
         for (auto & child_ptr : parent->child) {
             if (child_ptr == this) {
                 return false;
@@ -257,8 +277,8 @@ struct Node {
         return true;
     }
     // return true if this node has the given ancestor
-    bool HasAncestor(Node & that) {
-        Node * node_ptr = this;
+    bool HasAncestor(const Node & that) const {
+        const Node * node_ptr = this;
         while (node_ptr != &that) {
             if (node_ptr->parent == nullptr) {
                 return false;
@@ -544,28 +564,80 @@ struct Node {
             assert(!monster[i].Exists());
         }
         // increase hp by up to 6
-        hp += 6;
-        if (hp > max_hp) {
-            hp = max_hp;
+        if (relics.burning_blood) {
+            Heal(6);
         }
         battle_done = true;
         // calculate objective
         CalculateFinalObjective();
     }
+    // heal by the given amount
+    void Heal(uint16_t amount) {
+        if (amount > max_hp - hp) {
+            amount = max_hp - hp;
+        }
+        if (amount == 0) {
+            return;
+        }
+        hp += amount;
+    }
+    // reset energy
+    void ResetEnergy() {
+        energy = 3;
+        if (relics.cursed_key) {
+            ++energy;
+        }
+    }
     // reset state to beginning of battle
     void StartBattle() {
         assert(turn == 0);
-        probability = 1.0;
+        //probability = 1.0;
         turn = 1;
-        energy = 3;
+        ResetEnergy();
         discard_pile.Clear();
         hand.Clear();
         draw_pile = deck;
         cards_to_draw = 5;
+        if (relics.ring_of_the_snake) {
+            cards_to_draw += 2;
+        }
+        if (relics.bag_of_preparation) {
+            cards_to_draw += 2;
+        }
+        if (relics.blood_vial) {
+            Heal(2);
+        }
+        relics.akabeko_active = relics.akabeko;
+        if (relics.anchor) {
+            block += 10;
+        }
+        if (relics.ancient_tea_set_active) {
+            energy += 2;
+            relics.ancient_tea_set_active = 0;
+        }
+        if (relics.lantern) {
+            energy += 1;
+        }
+        if (relics.oddly_smooth_stone) {
+            buff[kBuffDexterity] += 1;
+        }
+        if (relics.vajra) {
+            buff[kBuffStrength] += 1;
+        }
+        if (relics.bag_of_marbles) {
+            for (auto & this_mob : monster) {
+                if (!this_mob.Exists()) {
+                    continue;
+                }
+                this_mob.buff.value[kBuffVulnerable] += 1;
+            }
+        }
+        if (relics.bronze_scales) {
+            buff[kBuffThorns] += 3;
+        }
         player_choice = false;
         generate_mob_intents = true;
         battle_done = false;
-        // roll possible mobs
     }
     // convert to human readable string
     std::string ToString() const {
@@ -700,12 +772,18 @@ struct Node {
         battle_done = true;
         CalculateFinalObjective();
     }
-    // get attacked for X damage
-    void GetAttacked(uint16_t damage) {
-        // apply vulnerability
-        if (buff.value[kBuffVulnerable]) {
-            damage = (uint16_t) (damage * 1.5);
+    // lose X HP
+    void TakeHPLoss(uint16_t hp_loss) {
+        // reduce HP
+        if (hp <= hp_loss) {
+            hp = 0;
+            Die();
+        } else {
+            hp -= hp_loss;
         }
+    }
+    // take X damage (can be reduced by block)
+    void TakeDamage(uint16_t damage) {
         // reduce block
         if (block) {
             if (block >= damage) {
@@ -716,13 +794,17 @@ struct Node {
                 block = 0;
             }
         }
-        // reduce HP
-        if (hp <= damage) {
-            hp = 0;
-            Die();
-        } else {
-            hp -= damage;
+        if (damage) {
+            TakeHPLoss(damage);
         }
+    }
+    // get attacked for X damage
+    void GetAttacked(uint16_t damage) {
+        // apply vulnerability
+        if (buff.value[kBuffVulnerable]) {
+            damage = (uint16_t) (damage * 1.5);
+        }
+        TakeDamage(damage);
     }
     // process the end turn action
     // (simulate end of turn and mob actions)
@@ -731,17 +813,24 @@ struct Node {
         player_choice = false;
         parent_decision.type = kDecisionEndTurn;
         // exhaust all ethereal cards
-        for (int i = 0; i < hand.card.size(); ++i) {
-            const Card & card = *card_index[hand.card[i].first];
+        for (int i = 0; i < hand.ptr->card.size(); ++i) {
+            const Card & card = *card_index[hand.ptr->card[i].first];
             if (card.IsEthereal()) {
-                exhaust_pile.AddCard(hand.card[i].first, hand.card[i].second);
-                hand.RemoveCard(hand.card[i].first, hand.card[i].second);
+                exhaust_pile.AddCard(
+                    hand.ptr->card[i].first,
+                    hand.ptr->card[i].second);
+                hand.RemoveCard(
+                    hand.ptr->card[i].first,
+                    hand.ptr->card[i].second);
                 --i;
             }
         }
         // discard all remaining cards
-        discard_pile.AddCard(hand);
+        discard_pile += hand;
         hand.Clear();
+        if (relics.orichalcum && block == 0) {
+            block = 6;
+        }
         // remove block on mobs
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             auto & mob = monster[i];
@@ -762,18 +851,33 @@ struct Node {
                 }
                 switch (action.type) {
                 case kActionAttack:
-                    GetAttacked(action.arg[0]);
-                    if (IsBattleDone()) {
-                        return;
+                {
+                    int16_t amount = action.arg[0];
+                    amount += mob.buff[kBuffStrength];
+                    if (mob.buff[kBuffWeak]) {
+                        amount = amount * 3 / 4;
+                    }
+                    if (amount > 0) {
+                        GetAttacked(amount);
+                        if (IsBattleDone()) {
+                            return;
+                        }
                     }
                     if (buff.value[kBuffThorns]) {
-                        mob.Attack(buff.value[kBuffThorns]);
+                        mob.TakeDamage(buff.value[kBuffThorns]);
+                        // if this mob died and it's the last one, finish battle
+                        if (mob.IsDead() && !MobsAlive()) {
+                            FinishBattle();
+                            return;
+                        }
                     }
                     if (IsBattleDone()) {
                         return;
                     }
                     break;
+                }
                 case kActionBlock:
+                    // mobs are never frail
                     mob.block += action.arg[0];
                     break;
                 case kActionBuff:
@@ -802,7 +906,7 @@ struct Node {
 
         // start new turn
         turn += 1;
-        energy = 3;
+        ResetEnergy();
         block = 0;
         generate_mob_intents = true;
         cards_to_draw = 5;
@@ -848,10 +952,20 @@ struct Node {
             }
             switch (action.type) {
                 case kActionAttack:
+                {
                     assert(card.IsTargeted());
+                    uint16_t amount = action.arg[0];
+                    amount += buff[kBuffStrength];
+                    if (relics.akabeko_active) {
+                        relics.akabeko_active = 0;
+                        amount += 8;
+                    }
+                    if (buff[kBuffWeak]) {
+                        amount = amount * 3 / 4;
+                    }
                     for (int16_t i = 0; i < action.arg[1]; ++i) {
                         if (mob.Exists()) {
-                            mob.Attack(action.arg[0] + buff[kBuffStrength]);
+                            mob.Attack(amount);
                             if (mob.buff[kBuffThorns]) {
                                 GetAttacked(mob.buff[kBuffThorns]);
                                 // if we died, we're done
@@ -867,13 +981,21 @@ struct Node {
                         }
                     }
                     break;
+                }
                 case kActionAttackAll:
+                {
                     assert(!card.IsTargeted());
+                    uint16_t amount = action.arg[0];
+                    amount += buff[kBuffStrength];
+                    if (relics.akabeko_active) {
+                        relics.akabeko_active = 0;
+                        amount += 8;
+                    }
                     for (int16_t i = 0; i < action.arg[1]; ++i) {
                         for (int16_t m = 0; m < MAX_MOBS_PER_NODE; ++m) {
                             auto & this_mob = monster[m];
                             if (this_mob.Exists()) {
-                                this_mob.Attack(action.arg[0] + buff[kBuffStrength]);
+                                this_mob.Attack(amount);
                                 if (this_mob.buff[kBuffThorns]) {
                                     GetAttacked(this_mob.buff[kBuffThorns]);
                                     // if we died, we're done
@@ -890,6 +1012,7 @@ struct Node {
                         }
                     }
                     break;
+                }
                 case kActionBlock:
                 {
                     int16_t x = action.arg[0] + buff[kBuffDexterity];

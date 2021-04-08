@@ -13,6 +13,7 @@ enum BuffType : uint8_t {
     kBuffThorns,
     kBuffEnrage,
     kBuffMetallicize,
+    kBuffCurlUp,
     // at end of turn, decrease strength by this amount and zero this value
     kBuffStrengthDown,
     kBuffFinal,
@@ -75,6 +76,9 @@ struct BuffState {
         if (value[kBuffStrengthDown] < that.value[kBuffStrengthDown]) {
             return false;
         }
+        if (value[kBuffCurlUp] > that.value[kBuffCurlUp]) {
+            return false;
+        }
         return true;
     }
     // return true if mob buffs are worse or equal
@@ -101,6 +105,9 @@ struct BuffState {
             return false;
         }
         if (value[kBuffStrengthDown] > that.value[kBuffStrengthDown]) {
+            return false;
+        }
+        if (value[kBuffCurlUp] < that.value[kBuffCurlUp]) {
             return false;
         }
         return true;

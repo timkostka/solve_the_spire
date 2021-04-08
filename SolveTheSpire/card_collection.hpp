@@ -1,7 +1,6 @@
 #pragma once
 
 #include "card.hpp"
-#include "card_collection_map.hpp"
 
 #include <cmath>
 #include <utility>
@@ -37,10 +36,6 @@ struct CardCollection {
     std::vector<std::pair<uint16_t, uint16_t>> card;
     // constructor
     CardCollection() : total(0) {
-    }
-    // return a pointer to this deck within the collection
-    const CardCollection * GetMapPointer() {
-        return CardCollectionMap::Find(*this);
     }
     // sorting operator
     bool operator< (const CardCollection & that) const {
@@ -120,7 +115,7 @@ struct CardCollection {
     }
     // return all combinations of selecting X cards at random
     // results are returned as (probability, cards_selected, cards_left)
-    std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> Select(uint16_t count) {
+    std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> Select(uint16_t count) const {
         // get number of results
         std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> result;
         uint16_t unique_card_count = (uint16_t) card.size();
@@ -132,7 +127,7 @@ struct CardCollection {
         // get number of items we can assign past this
         std::vector<uint16_t> space_to_right(unique_card_count, 0);
         if (unique_card_count > 0) {
-            std::size_t i = unique_card_count - 1;
+            std::size_t i = (std::size_t) unique_card_count - 1;
             while (i > 0) {
                 --i;
                 space_to_right[i] = space_to_right[i + 1] + card[i + 1].second;
@@ -214,10 +209,10 @@ struct CardCollection {
         }
     }
     // return the number of unique subsets
-    std::size_t CountUniqueSubsets() {
+    std::size_t CountUniqueSubsets() const {
         std::size_t result = 1;
         for (auto & i : card) {
-            result *= i.second;
+            result *= (std::size_t) i.second + 1;
         }
         return result;
     }

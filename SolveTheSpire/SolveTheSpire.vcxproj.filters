@@ -44,5 +44,14 @@
     <ClInclude Include="card_collection_map.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="relics.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="fight.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="defines.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -42,14 +42,6 @@ struct Card {
     uint8_t cost;
     // card flags
     uint32_t flags;
-    /*// true if card has a single enemy target (e.g. Strike)
-    bool targeted;
-    // true if card is ethereal
-    bool ethereal;
-    // true if card exhausts
-    bool exhausts;
-    // true if card is innate
-    bool innate;*/
     // upgraded card version, or nullptr
     const Card * upgraded_version;
     // list of actions
@@ -136,7 +128,6 @@ const Card card_clothesline = {
     "Clothesline", kCardTypeAttack, 1, 1, kCardFlagTargeted, &card_clothesline_plus,
     {{kActionAttack, 12, 1}, {kActionDebuff, {kBuffWeak, 2}}, kActionNone}};
 
-// flex
 const Card card_flex_plus = {
     "Flex+", kCardTypeSkill, 1, 1, 0, nullptr,
     {{kActionBuff, kBuffStrength, 4}, {kActionBuff, kBuffStrengthDown, 4}, kActionNone}};
