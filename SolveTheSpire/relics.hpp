@@ -45,7 +45,7 @@ struct RelicStruct {
     //unsigned int kunai_count : 2;
     //unsigned int letter_opener : 1;
     //unsigned int letter_opener_count : 2;
-    //unsigned int meat_on_the_bone : 1;
+    unsigned int meat_on_the_bone : 1;
     //unsigned int mercury_hourglass : 1;
     //unsigned int ornamental_fan : 1;
     //unsigned int ornamental_fan_count : 2;
@@ -64,7 +64,7 @@ struct RelicStruct {
     //unsigned int fusion_hammer : 1;
     //unsigned int philosophers_stone : 1;
     //unsigned int runic_dome : 1;
-    //unsigned int runic_pyramid : 1;
+    unsigned int runic_pyramid : 1;
     //unsigned int slavers_collar : 1;
     //unsigned int snecko_eye : 1;
     //unsigned int sozu : 1;

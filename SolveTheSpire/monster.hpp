@@ -146,7 +146,7 @@ struct Monster {
 std::vector<std::pair<double, Monster>> GenerateMob(const BaseMonster & base) {
     std::vector<std::pair<double, Monster>> result;
     // if we're just using an average, return a single mob
-    if (normalize_mob_variation) {
+    if (normalize_mob_variations) {
         result.push_back(std::pair<double, Monster>(1.0, Monster(base)));
         result.rbegin()->second.hp =
             (base.hp_range.first + base.hp_range.second) / 2;
@@ -168,7 +168,7 @@ std::vector<std::pair<double, Monster>> GenerateLouse(const BaseMonster & base) 
     // strength possibilities (effective)
     {
         std::vector<std::pair<double, unsigned int>> strength;
-        if (normalize_mob_variation) {
+        if (normalize_mob_variations) {
             strength.push_back(std::pair<double, unsigned int>(1.0, 1));
         } else {
             strength.push_back(std::pair<double, unsigned int>(1.0 / 3, 0));
@@ -188,7 +188,7 @@ std::vector<std::pair<double, Monster>> GenerateLouse(const BaseMonster & base) 
     // curl up possibilities
     {
         std::vector<std::pair<double, unsigned int>> curl_up;
-        if (normalize_mob_variation) {
+        if (normalize_mob_variations) {
             curl_up.push_back(std::pair<double, unsigned int>(1.0, 10));
         } else {
             curl_up.push_back(std::pair<double, unsigned int>(0.25, 9));
@@ -326,7 +326,7 @@ IntentPossibilites GetIntentLagavulin(Monster & mob) {
 // base models for each mob are below
 BaseMonster base_mob_lagavulin = {
     "Lagavulin",
-    {112, 112}, //{112, 115},
+    {112, 115},
     {
         {"Sleep", {{kActionNone}}},
         {"Attack", {{kActionAttack, 20}}},
@@ -354,7 +354,7 @@ IntentPossibilites GetIntentGremlinNob(Monster & mob) {
 // base models for each mob are below
 BaseMonster base_mob_gremlin_nob = {
     "Gremlin Nob",
-    {85, 85}, //{85, 90},
+    {85, 90},
     {
         {"Bellow", {{kActionBuff, kBuffEnrage, 3}}},
         {"Rush", {{kActionAttack, 16}}},

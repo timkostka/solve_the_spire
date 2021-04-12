@@ -209,3 +209,9 @@ const Card card_inflame_plus = {
 const Card card_inflame = {
     "Inflame", kCardTypeSkill, 1, 1, 0, &card_inflame_plus,
     {{kActionBuff, kBuffStrength, 2}, kActionNone}};
+
+// curses
+
+const Card card_ascenders_bane = {
+    "Ascender's Bane", kCardTypeCurse, 0, 0, kCardFlagUnplayable | kCardFlagEthereal, nullptr,
+    {kActionNone}};

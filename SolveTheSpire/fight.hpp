@@ -16,6 +16,7 @@ enum FightEnum : uint8_t {
     kFightAct1EasyLouses,
     kFightAct1EliteLagavulin,
     kFightAct1EliteGremlinNob,
+    kFightAct1EliteGremlinNobNominal,
     kFightTestOneLouse,
 };
 
@@ -26,7 +27,9 @@ typedef std::vector<std::pair<double, std::vector<Monster>>>(*MonsterGenerationF
 struct FightStruct {
     // name of the fight
     std::string name;
-    // monster generation function
+    // base mob name (or nullptr)
+    BaseMonster * base_mob;
+    // custom monster generation function (or nullptr)
     MonsterGenerationFunction generation_function;
 };
 
@@ -43,10 +46,25 @@ std::vector<std::pair<double, std::vector<Monster>>> GenerateFightSingleMob(
     return result;
 }
 
-// generate mobs
-std::vector<std::pair<double, std::vector<Monster>>> GenerateFightCultist() {
-    return GenerateFightSingleMob(base_mob_cultist);
-}
+//// generate mobs
+//std::vector<std::pair<double, std::vector<Monster>>> GenerateFightCultist() {
+//    return GenerateFightSingleMob(base_mob_cultist);
+//}
+//
+//// generate mobs
+//std::vector<std::pair<double, std::vector<Monster>>> GenerateFightJawWorm() {
+//    return GenerateFightSingleMob(base_mob_jaw_worm);
+//}
+//
+//// generate mobs
+//std::vector<std::pair<double, std::vector<Monster>>> GenerateFightGremlinNob() {
+//    return GenerateFightSingleMob(base_mob_gremlin_nob);
+//}
+//
+//// generate mobs
+//std::vector<std::pair<double, std::vector<Monster>>> GenerateFightLagavulin() {
+//    return GenerateFightSingleMob(base_mob_lagavulin);
+//}
 
 // generate mobs for the two louse fight
 std::vector<std::pair<double, std::vector<Monster>>> GenerateFightTwoLouses() {
@@ -120,7 +138,10 @@ std::vector<std::pair<double, std::vector<Monster>>> GenerateFightOneLouse() {
 
 // map between fights and generator functions
 std::map<FightEnum, FightStruct> fight_map = {
-    {kFightAct1EasyCultist, {"Cultist", GenerateFightCultist}},
-    {kFightAct1EasyLouses, {"Two Louses", GenerateFightTwoLouses}},
-    {kFightTestOneLouse, {"One Louse", GenerateFightOneLouse}},
+    {kFightAct1EasyCultist, {"Cultist", &base_mob_cultist, nullptr}},
+    {kFightAct1EasyJawWorm, {"Jaw Worm", &base_mob_jaw_worm, nullptr}},
+    {kFightAct1EasyLouses, {"Two Louses", nullptr, GenerateFightTwoLouses}},
+    {kFightTestOneLouse, {"One Louse", nullptr, GenerateFightOneLouse}},
+    {kFightAct1EliteGremlinNob, {"Gremlin Nob", &base_mob_gremlin_nob, nullptr}},
+    {kFightAct1EliteLagavulin, {"Lagavulin", &base_mob_lagavulin, nullptr}},
 };
