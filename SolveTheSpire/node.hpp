@@ -18,6 +18,7 @@
 #include "monster.hpp"
 #include "relics.hpp"
 #include "fight.hpp"
+#include "orbs.hpp"
 
 // map of decks
 // Each node stores a pointer to a deck within this collection rather than
@@ -29,6 +30,8 @@
 enum DecisionTypeEnum : uint8_t {
     kDecisionUnused = 0,
     // play a card
+    // first argument is card index played
+    // second argument is target (if applicable)
     kDecisionPlayCard,
     // end the turn
     kDecisionEndTurn,
@@ -44,7 +47,7 @@ struct Decision {
     std::string ToString() const {
         std::ostringstream ss;
         if (type == kDecisionPlayCard) {
-            const Card & card = *card_index[argument[0]];
+            const Card & card = *card_map[argument[0]];
             ss << "play " << card.name;
         } else if (type == kDecisionEndTurn) {
             return "end turn";
@@ -57,6 +60,8 @@ struct Decision {
 
 // A Node contains all information about a game node.
 struct Node {
+    static bool last_card_skill_matters;
+    static bool last_card_attack_matters;
     // fight type
     FightEnum fight_type;
     // node number (to help with sorting order)
@@ -69,8 +74,16 @@ struct Node {
     uint16_t layer;
     // max player HP
     uint16_t max_hp;
+    // stance
+    StanceEnum stance;
     // relic state
     RelicStruct relics;
+    // orb slots
+    uint8_t orb_slots;
+    // focus
+    uint8_t focus;
+    // orbs
+    std::vector<OrbStruct> orbs;
     // current player HP
     uint16_t hp;
     // amount of block
@@ -105,10 +118,6 @@ struct Node {
     // decision at parent node in order to get to this node
     // (only valid if player_choice of parent is false)
     Decision parent_decision;
-    // max final hp
-    //uint16_t max_final_hp;
-    // expected final hp
-    //double expected_final_hp;
     // number of cards left to draw for this turn
     uint16_t cards_to_draw;
     // true if battle is complete
@@ -121,6 +130,10 @@ struct Node {
     double composite_objective;
     // path objective (used to sort optional nodes for evaluating)
     double path_objective;
+    // true if last card was an attack
+    bool last_card_attack;
+    // true if last card was a skill
+    bool last_card_skill;
     // default constructor
     //Node() :
     //    fight_type(kFightAct1EasyCultist),
@@ -151,6 +164,69 @@ struct Node {
     bool IsBattleDone() const {
         return battle_done;
     }
+    // pop the rightmost orb
+    void PopOrb() {
+        orbs.erase(orbs.begin());
+    }
+    // evoke an orb
+    void EvokeOrb(OrbStruct & orb) {
+        if (orb.type == kOrbLightning) {
+            if (MAX_MOBS_PER_NODE > 1 && monster[1].Exists()) {
+                printf("Random targeting with 2+ enemies not implemented\n");
+                exit(1);
+            }
+            if (monster[0].Exists()) {
+                monster[0].TakeDamage(8 + focus, false);
+            }
+        } else if (orb.type == kOrbFrost) {
+            block += 5 + focus;
+        } else if (orb.type == kOrbDark) {
+            if (MAX_MOBS_PER_NODE > 1 && monster[1].Exists()) {
+                printf("Random targeting with 2+ enemies not implemented\n");
+                exit(1);
+            }
+            if (monster[0].Exists()) {
+                monster[0].TakeDamage(orb.damage, false);
+            }
+        } else if (orb.type == kOrbFusion) {
+            energy += 2;
+        }
+    }
+    // channel an orb
+    void ChannelOrb(OrbEnum type) {
+        if (orbs.size() == orb_slots) {
+            EvokeOrb(orbs[0]);
+            PopOrb();
+        }
+        orbs.push_back(OrbStruct(type));
+    }
+    // process fusion orbs passives at start of turn
+    void ProcessOrbsStartTurn() {
+        for (auto & orb : orbs) {
+            if (orb.type == kOrbFusion) {
+                energy += 1;
+            }
+        }
+    }
+    // process all orb passives at end of turn
+    void ProcessOrbsEndTurn() {
+        for (auto & orb : orbs) {
+            if (orb.type == kOrbLightning) {
+                // only implemented for 1 mob alive
+                if (MAX_MOBS_PER_NODE > 1 && monster[1].Exists()) {
+                    printf("Random targeting with 2+ enemies not implemented\n");
+                    exit(1);
+                }
+                if (monster[0].Exists()) {
+                    monster[0].TakeDamage(3 + focus, false);
+                }
+            } else if (orb.type == kOrbFrost) {
+                block += 2 + focus;
+            } else if (orb.type == kOrbDark) {
+                orb.damage += 6 + focus;
+            }
+        }
+    }
     // return an objective function used to evaluate the best decision
     // this function may only use information within this node--no information
     // from children is allowed
@@ -167,6 +243,7 @@ struct Node {
         return x;
     }
     // return best possible ultimate objective function for a child of this node
+    // (it's okay to overestimate, but not ideal)
     double GetMaxFinalObjective() const {
         if (IsBattleDone()) {
             return hp;
@@ -193,6 +270,14 @@ struct Node {
         assert(child.empty());
         tree_solved = true;
         composite_objective = hp;
+        // TODO: if we die, ensure we choose path that lowers the mob HP the most
+        //if (hp == 0) {
+        //    for (auto & mob : monster) {
+        //        if (mob.Exists()) {
+        //            composite_objective -= mob.hp / 1000.0;
+        //        }
+        //    }
+        //}
     }
     // initialize a start of fight node
     // (only things that need initialized outside of this are:
@@ -202,11 +287,19 @@ struct Node {
         assert(max_hp >= hp);
         assert(!deck.IsEmpty());
 
+        // TODO: populate last_card_attack/skill_matters based on cards in deck
+
+        stance = kStanceNone;
         discard_pile.Clear();
         hand.Clear();
         exhaust_pile.Clear();
+        // TODO: is deck shuffled at start of battle?
+        //draw_pile.Clear();
         draw_pile = deck;
+        last_card_attack = false;
+        last_card_skill = false;
 
+        focus = 0;
         index = 0;
         layer = 0;
         turn = 0;
@@ -223,24 +316,6 @@ struct Node {
         composite_objective = GetMaxFinalObjective();
         path_objective = GetPathObjective();
     }
-    //// estimate composite objective for a tree with at least one solved child
-    //double EstimateCompositeObjective() {
-    //    // get a list of final states and probability of reaching each one
-    //    std::list<std::pair<double, Node *>> end_states;
-    //    FindTerminalLeaves(/*1.0,*/ end_states);
-    //    double check = 0.0;
-    //    for (auto & ptr : end_states) {
-    //        check += ptr.first;
-    //    }
-    //    if (abs(check - 1.0) > 1e-10) {
-    //        printf("ERROR: total probability (%g) not 1\n", check);
-    //    }
-    //    double result = 0.0;
-    //    for (auto & item : end_states) {
-    //        result += item.first * item.second->composite_objective;
-    //    }
-    //    return result;
-    //}
     // return total number of nodes including this one and below it
     std::size_t CountNodes() {
         std::size_t count = 1;
@@ -302,85 +377,6 @@ struct Node {
         }
         return true;
     }
-    // try to solve this tree and return true if successful
-    // (may only be called on nodes with one or more solved children)
-    bool SolveTree() {
-        assert(!tree_solved);
-        // if terminal node, objective is easy
-        assert(!child.empty());
-        if (child.empty()) {
-            assert(tree_solved);
-            CalculateFinalObjective();
-            tree_solved = true;
-        } else if (child.size() == 1) {
-            // pretty sure we always are in this case
-            assert(child[0]->tree_solved);
-            composite_objective = child[0]->composite_objective;
-            tree_solved = true;
-        } else {
-            // if not a player choice, calculate composite from children
-            if (!player_choice) {
-                // if this is not a player choice, all children need to be solved
-                for (auto & this_child : child) {
-                    if (!this_child->tree_solved) {
-                        return false;
-                    }
-                }
-                composite_objective = CalculateCompositeObjective();
-                tree_solved = true;
-            }
-            // if it is a player choice, make the best decision
-            if (player_choice) {
-                bool found_solved = false;
-                // find best objective out of solved children
-                double best_solved_objective = 0.0;
-                //
-                bool found_unsolved = false;
-                // index of best solved objective
-                std::size_t best_solved_objective_index = 0;
-                // out of unsolved children, hold max bound on potential composite
-                double max_unsolved_objective = 0.0;
-                for (std::size_t i = 0; i < child.size(); ++i) {
-                    if (child[i]->tree_solved) {
-                        double & x = child[i]->composite_objective;
-                        if (!found_solved || x > best_solved_objective) {
-                            best_solved_objective = x;
-                            best_solved_objective_index = i;
-                            found_solved = true;
-                        }
-                    } else {
-                        double x = child[i]->GetMaxFinalObjective();
-                        if (!found_unsolved || x > max_unsolved_objective) {
-                            max_unsolved_objective = x;
-                            found_unsolved = true;
-                        }
-                    }
-                }
-                // if unsolved children can be better, we can't do anything
-                if (found_unsolved &&
-                        max_unsolved_objective > best_solved_objective) {
-                    //std::cout << "Potential improvement found\n";
-                    //PrintTree();
-                    return false;
-                }
-                if (found_unsolved) {
-                    //std::cout << "Orphaned unsolved nodes\n";
-                    //PrintTree();
-                }
-                // select best choice
-                // (this is the point at which we can orphan nodes)
-                child[0] = child[best_solved_objective_index];
-                child.resize(1);
-                tree_solved = true;
-                composite_objective = best_solved_objective;
-                if (found_unsolved) {
-                    //PrintTree();
-                    //printf("");
-                }
-            }
-        }
-        return true;
-    }
     // return an estimate for the composite objective by looking at direct children
     double CalculateCompositeObjective() {
         // if no children, just get max
@@ -394,11 +390,9 @@ struct Node {
         // if children and players choice, return max
         if (player_choice) {
             double max_objective = child[0]->composite_objective;
-            //std::size_t max_objective_index = 0;
             for (std::size_t i = 1; i < child.size(); ++i) {
                 if (child[i]->composite_objective > max_objective) {
                     max_objective = child[i]->composite_objective;
-                    //max_objective_index = i;
                 }
             }
             return max_objective;
@@ -413,10 +407,8 @@ struct Node {
                 objective += child[i]->probability * child[i]->composite_objective;
                 if (child[i]->composite_objective > max_objective) {
                     max_objective = child[i]->composite_objective;
-                    //max_objective_index = i;
                 } else if (child[i]->composite_objective < min_objective) {
                     min_objective = child[i]->composite_objective;
-                    //max_objective_index = i;
                 }
             }
             // to prevent roundoff errors from propagating
@@ -445,146 +437,6 @@ struct Node {
         }
         return true;
     }
-    // delete children if we're not saving them
-    //void DeleteChildren() {
-    //    if (!keep_entire_tree_in_memory &&
-    //            parent != nullptr &&
-    //            parent->parent != nullptr &&
-    //            tree_solved) {
-    //        child.clear();
-    //    }
-    //}
-    //// update this node.  if we find changes, update parents until we no
-    //// longer find changes.  This is only ever called on nodes with children.
-    //void UpdateTree() {
-    //    // doesn't make sense to call this on a solved node
-    //    assert(!tree_solved);
-    //    // if terminal node, objective is easy
-    //    assert(!child.empty());
-    //    // if only one child, objective is the same as that child
-    //    if (child.size() == 1) {
-    //        // if it's different, update and update parent
-    //        if (composite_objective != child[0]->composite_objective ||
-    //               tree_solved != child[0]->tree_solved) {
-    //            composite_objective = child[0]->composite_objective;
-    //            tree_solved = child[0]->tree_solved;
-    //            // prune solved nodes
-    //            DeleteChildren();
-    //            // update parent
-    //            if (parent != nullptr) {
-    //                parent->UpdateTree();
-    //            }
-    //        }
-    //        return;
-    //    }
-    //    assert(child.size() > 1);
-    //    // if not player choice, objective is probability weighted average of
-    //    // children and tree is solved iff all children are solved
-    //    if (!player_choice) {
-    //        double x = CalculateCompositeObjective();
-    //        bool solved = AreChildrenSolved();
-    //        if (composite_objective != x || tree_solved != solved) {
-    //            composite_objective = x;
-    //            tree_solved = solved;
-    //            // prune solved nodes
-    //            DeleteChildren();
-    //            // update parent
-    //            if (parent != nullptr) {
-    //                parent->UpdateTree();
-    //            }
-    //        }
-    //        return;
-    //    }
-    //    // if a player choice
-    //    // (1) if all children are solved, choose the best one
-    //    // (2) if no children are solved, objective is the highest child objective
-    //    // (3) if some children are solved, eliminate unsolved paths with
-    //    //     max objectives at or below the max solved objective
-    //    bool solved_children = false;
-    //    double max_solved_objective = 0.0;
-    //    std::size_t max_solved_objective_index = 0;
-    //    bool unsolved_children = false;
-    //    double max_unsolved_objective = 0.0;
-    //    for (std::size_t i = 0; i < child.size(); ++i) {
-    //        const Node & this_child = *child[i];
-    //        if (this_child.tree_solved) {
-    //            if (!solved_children ||
-    //                this_child.composite_objective > max_solved_objective) {
-    //                max_solved_objective = this_child.composite_objective;
-    //                max_solved_objective_index = i;
-    //            }
-    //            solved_children = true;
-    //        } else {
-    //            unsolved_children = true;
-    //            max_unsolved_objective =
-    //                std::max(max_unsolved_objective,
-    //                    this_child.composite_objective);
-    //        }
-    //    }
-    //    // (1) if all children solved, choose the best one
-    //    if (!unsolved_children) {
-    //        if (parent == nullptr) {
-    //            printf("ASDFASDFASD\n");
-    //        }
-    //        // delete other children
-    //        child[0] = child[max_solved_objective_index];
-    //        child.resize(1);
-    //        assert(!tree_solved);
-    //        tree_solved = true;
-    //        assert(child[0]->composite_objective == max_solved_objective);
-    //        composite_objective = max_solved_objective;
-    //        // prune solved nodes
-    //        DeleteChildren();
-    //        if (parent != nullptr) {
-    //            parent->UpdateTree();
-    //        }
-    //        return;
-    //    }
-    //    // (2) if no children are solved, objective is the highest child objective
-    //    if (!solved_children) {
-    //        if (composite_objective != max_unsolved_objective) {
-    //                composite_objective = max_unsolved_objective;
-    //            if (parent != nullptr) {
-    //                parent->UpdateTree();
-    //            }
-    //        }
-    //        return;
-    //    }
-    //    // (3) if some children are solved, eliminate unsolved paths with
-    //    //     max objectives below the max solved objective and also
-    //    //     eliminate solved paths that are not optimal
-    //    assert(solved_children && unsolved_children);
-    //    {
-    //        std::size_t i = child.size();
-    //        while (i > 0) {
-    //            assert(i > 0);
-    //            --i;
-    //            const Node & this_child = *child[i];
-    //            if ((this_child.tree_solved &&
-    //                i != max_solved_objective_index) ||
-    //                (!this_child.tree_solved &&
-    //                    this_child.composite_objective <= max_solved_objective)) {
-    //                child.erase(child.begin() + i);
-    //                continue;
-    //            }
-    //        }
-    //    }
-    //    // if path is now solved, mark it as such
-    //    if (solved_children && child.size() == 1) {
-    //        tree_solved = true;
-    //    } else {
-    //        assert(max_unsolved_objective > max_solved_objective);
-    //    }
-    //    // if objective changed, update parents
-    //    double x = std::max(max_unsolved_objective, max_solved_objective);
-    //    if (tree_solved || x > composite_objective) {
-    //        composite_objective = x;
-    //        DeleteChildren();
-    //        if (parent != nullptr) {
-    //            parent->UpdateTree();
-    //        }
-    //    }
-    //}
     // finish battle in which player is still alive
     void FinishBattle() {
         assert(!battle_done);
@@ -626,8 +478,14 @@ struct Node {
         turn = 1;
         ResetEnergy();
         cards_to_draw = 5;
+        if (relics.pure_water) {
+            hand.AddCard(card_miracle);
+        }
         if (relics.ring_of_the_snake) {
             cards_to_draw += 2;
+        }
+        if (relics.cracked_core) {
+            ChannelOrb(kOrbLightning);
         }
         if (relics.bag_of_preparation) {
             cards_to_draw += 2;
@@ -710,23 +568,29 @@ struct Node {
             }
             ss << "turn=" << turn;
         }
-        //if (parent != nullptr && !parent->player_choice && parent->child.size() > 1) {
-            if (first_item) {
-                first_item = false;
-            } else {
-                ss << ", ";
-            }
-            ss.precision(3);
-            ss << "p=" << probability;
-        //}
+        if (first_item) {
+            first_item = false;
+        } else {
+            ss << ", ";
+        }
+        ss.precision(3);
+        ss << "p=" << probability;
         if (first_item) {
             first_item = false;
         } else {
             ss << ", ";
         }
         ss << "hp=" << hp << "/" << max_hp;
+        if (stance == kStanceWrath) {
+            ss << ", Wrath";
+        } else if (stance == kStanceCalm) {
+            ss << ", Calm";
+        }
         if (turn == 0) {
             ss << ", deck=" << deck.ToString();
+            ss << ", fight=" << fight_map[fight_type].name;
+        }
+        if (turn == 0) {
         }
         if (turn != 0 && cards_to_draw) {
             ss << ", to_draw=" << cards_to_draw;
@@ -737,6 +601,15 @@ struct Node {
         if (player_choice) {
             ss << ", energy=" << energy;
             ss << ", hand=" << hand.ToString();
+        } else if (!hand.IsEmpty()) {
+            ss << ", hand=" << hand.ToString();
+        }
+        if (!orbs.empty()) {
+            ss << ", orbs=";
+            ss << orbs[0].ToString();
+            for (int i = 1; i < orbs.size(); ++i) {
+                ss << "," << orbs[i].ToString();
+            }
         }
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             if (!monster[i].Exists()) {
@@ -847,10 +720,16 @@ struct Node {
         // set tree information
         player_choice = false;
         parent_decision.type = kDecisionEndTurn;
+        // process orbs
+        ProcessOrbsEndTurn();
+        if (!MobsAlive()) {
+            FinishBattle();
+            return;
+        }
         // exhaust all ethereal cards
-        for (int i = 0; i < hand.ptr->card.size(); ++i) {
-            const Card & card = *card_index[hand.ptr->card[i].first];
-            if (card.IsEthereal()) {
+        for (std::size_t i = 0; i < hand.ptr->card.size(); ++i) {
+            const Card & card = *card_map[hand.ptr->card[i].first];
+            if (card.flag.ethereal) {
                 exhaust_pile.AddCard(
                     hand.ptr->card[i].first,
                     hand.ptr->card[i].second);
@@ -860,10 +739,20 @@ struct Node {
                 --i;
             }
         }
-        // discard all remaining cards
+        // discard all remaining cards except those we retain
         if (relics.runic_pyramid == 0) {
-            discard_pile += hand;
-            hand.Clear();
+            CardCollectionPtr new_hand;
+            new_hand.Clear();
+            for (auto & item : hand.ptr->card) {
+                const Card & card = *card_map[item.first];
+                if (card.flag.retain) {
+                    new_hand.AddCard(item.first, item.second);
+                } else {
+                    discard_pile.AddCard(item.first, item.second);
+                }
+            }
+            // remove them from hand
+            hand = new_hand;
         }
         if (relics.orichalcum && block == 0) {
             block = 6;
@@ -891,6 +780,9 @@ struct Node {
                 {
                     int16_t amount = action.arg[0];
                     amount += mob.buff[kBuffStrength];
+                    if (stance == kStanceWrath) {
+                        amount *= 2;
+                    }
                     if (mob.buff[kBuffWeak]) {
                         amount = amount * 3 / 4;
                     }
@@ -901,7 +793,7 @@ struct Node {
                         }
                     }
                     if (buff.value[kBuffThorns]) {
-                        mob.TakeDamage(buff.value[kBuffThorns]);
+                        mob.TakeDamage(buff.value[kBuffThorns], false);
                         // if this mob died and it's the last one, finish battle
                         if (mob.IsDead() && !MobsAlive()) {
                             FinishBattle();
@@ -924,7 +816,8 @@ struct Node {
                     buff[action.arg[0]] += action.arg[1];
                     break;
                 default:
-                    assert(false);
+                    printf("ERROR: unexpected value\n");
+                    exit(1);
                 }
             }
         }
@@ -959,15 +852,45 @@ struct Node {
         }
         return false;
     }
+    // return the number of "Strike" cards present
+    uint16_t CountStrikeCards() {
+        uint16_t count = 0;
+        for (auto & card : draw_pile.ptr->card) {
+            if (card_map[card.first]->flag.strike) {
+                count += card.second;
+            }
+        }
+        for (auto & card : hand.ptr->card) {
+            if (card_map[card.first]->flag.strike) {
+                count += card.second;
+            }
+        }
+        for (auto & card : discard_pile.ptr->card) {
+            if (card_map[card.first]->flag.strike) {
+                count += card.second;
+            }
+        }
+        return count;
+    }
+    // sort mobs
+    void SortMobs() {
+        for (int i = 0; i < MAX_MOBS_PER_NODE - 1; ++i) {
+            if (!monster[i].Exists() && monster[i + 1].Exists()) {
+                monster[i] = monster[i + 1];
+                monster[i + 1].hp = 0;
+                monster[i + 1].base = nullptr;
+            }
+        }
+    }
     // play a card
     void PlayCard(uint16_t index, uint8_t target = 0) {
-        const auto & card = *card_index[index];
+        const auto & card = *card_map[index];
         // set up decision information
         parent_decision.type = kDecisionPlayCard;
         parent_decision.argument[0] = index;
         parent_decision.argument[1] = target;
         // process enrage
-        if (card.type == kCardTypeSkill) {
+        if (card.flag.skill) {
             for (auto & mob : monster) {
                 if (mob.buff[kBuffEnrage]) {
                     mob.buff[kBuffStrength] += mob.buff[kBuffEnrage];
@@ -978,26 +901,62 @@ struct Node {
         assert(energy >= card.cost);
         energy -= card.cost;
         auto & mob = monster[target];
-        if (card.IsTargeted()) {
+        if (card.flag.targeted) {
             assert(mob.Exists());
         }
         // do actions
-        for (auto & action : card.action) {
+        for (uint32_t i = 0; i < MAX_CARD_ACTIONS; ++i) {
+            const auto & action = card.action[i];
             if (action.type == kActionNone) {
                 break;
             }
             switch (action.type) {
+                case kActionAttackPerfectedStrike:
+                case kActionAttackHeavyBlade:
+                case kActionAttackBowlingBash:
                 case kActionAttack:
                 {
-                    assert(card.IsTargeted());
-                    uint16_t amount = action.arg[0];
-                    amount += buff[kBuffStrength];
+                    uint16_t amount = 0;
+                    uint16_t count = 0;
+                    if (action.type == kActionAttack) {
+                        amount = action.arg[0];
+                        count = action.arg[1];
+                    } else if (action.type == kActionAttackPerfectedStrike) {
+                        amount = action.arg[0] + action.arg[1] * CountStrikeCards();
+                        count = 1;
+                    } else if (action.type == kActionAttackHeavyBlade) {
+                        amount = action.arg[0];
+                        count = 1;
+                    } else if (action.type == kActionAttackBowlingBash) {
+                        amount = action.arg[0];
+                        count = 0;
+                        for (auto & mob : monster) {
+                            if (mob.Exists()) {
+                                ++count;
+                            }
+                        }
+                    } else {
+                        exit(1);
+                    }
+                    assert(card.flag.targeted);
+                    if (action.type == kActionAttackHeavyBlade) {
+                        amount += buff[kBuffStrength] * action.arg[1];
+                    } else {
+                        amount += buff[kBuffStrength];
+                    }
                     if (relics.akabeko_active) {
                         relics.akabeko_active = 0;
                         amount += 8;
                     }
+                    if (stance == kStanceWrath) {
+                        amount *= 2;
+                    }
                     if (buff[kBuffWeak]) {
                         amount = amount * 3 / 4;
+                    }
+                    if (action.type == kActionAttackBowlingBash) {
+                        amount = amount * count;
+                        count = 1;
                     }
                     for (int16_t i = 0; i < action.arg[1]; ++i) {
                         if (mob.Exists()) {
@@ -1020,12 +979,18 @@ struct Node {
                 }
                 case kActionAttackAll:
                 {
-                    assert(!card.IsTargeted());
+                    assert(!card.flag.targeted);
                     uint16_t amount = action.arg[0];
                     amount += buff[kBuffStrength];
                     if (relics.akabeko_active) {
                         relics.akabeko_active = 0;
                         amount += 8;
+                    }
+                    if (stance == kStanceWrath) {
+                        amount *= 2;
+                    }
+                    if (buff[kBuffWeak]) {
+                        amount = amount * 3 / 4;
                     }
                     for (int16_t i = 0; i < action.arg[1]; ++i) {
                         for (int16_t m = 0; m < MAX_MOBS_PER_NODE; ++m) {
@@ -1061,13 +1026,14 @@ struct Node {
                     buff[action.arg[0]] += action.arg[1];
                     break;
                 case kActionDebuff:
-                    assert(card.IsTargeted());
+                    assert(card.flag.targeted);
                     if (mob.Exists()) {
                         mob.buff[action.arg[0]] += action.arg[1];
                     }
                     break;
                 case kActionDebuffAll:
-                    assert(!card.IsTargeted());
+                {
+                    assert(!card.flag.targeted);
                     for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
                         if (!monster[i].Exists()) {
                             continue;
@@ -1075,28 +1041,130 @@ struct Node {
                         monster[i].buff[action.arg[0]] += action.arg[1];
                     }
                     break;
+                }
                 case kActionAddCardToDrawPile:
+                {
                     draw_pile.AddCard(action.arg[0]);
                     break;
+                }
                 case kActionAddCardToDiscardPile:
+                {
                     discard_pile.AddCard(action.arg[0]);
                     break;
+                }
+                case kActionChangeStance:
+                {
+                    StanceEnum new_stance = (StanceEnum) action.arg[0];
+                    if (stance != action.arg[0]) {
+                        if (stance == kStanceCalm) {
+                            energy += 2;
+                        }
+                        stance = new_stance;
+                        // move Flurry of Blows from discard to hand
+                        uint16_t flurry_plus_index = card_flurry_of_blows.GetIndex();
+                        uint16_t flurry_plus_count =
+                            discard_pile.CountCard(flurry_plus_index);
+                        if (flurry_plus_count > 0 && hand.Count() < MAX_HAND_SIZE) {
+                            uint16_t to_add = flurry_plus_count;
+                            if (hand.Count() + to_add > MAX_HAND_SIZE) {
+                                to_add = MAX_HAND_SIZE - hand.Count();
+                            }
+                            assert(to_add > 0);
+                            hand.AddCard(flurry_plus_count, to_add);
+                            discard_pile.RemoveCard(flurry_plus_count, to_add);
+                        }
+                        uint16_t flurry_index = card_flurry_of_blows.GetIndex();
+                        uint16_t flurry_count = discard_pile.CountCard(flurry_index);
+                        if (flurry_count > 0 && hand.Count() < MAX_HAND_SIZE) {
+                            uint16_t to_add = flurry_count;
+                            if (hand.Count() + to_add > MAX_HAND_SIZE) {
+                                to_add = MAX_HAND_SIZE - hand.Count();
+                            }
+                            assert(to_add > 0);
+                            hand.AddCard(flurry_index, to_add);
+                            discard_pile.RemoveCard(flurry_index, to_add);
+                        }
+                    }
+                    break;
+                }
+                case kActionGainEnergy:
+                {
+                    energy += action.arg[0];
+                    break;
+                }
+                case kActionChannelOrb:
+                {
+                    for (int32_t i = 0; i < action.arg[1]; ++i) {
+                        ChannelOrb((OrbEnum) action.arg[0]);
+                    }
+                    break;
+                }
+                case kActionEvokeOrb:
+                {
+                    if (!orbs.empty()) {
+                        for (int32_t i = 0; i < action.arg[0]; ++i) {
+                            EvokeOrb(orbs[0]);
+                        }
+                        PopOrb();
+                    }
+                    break;
+                }
+                case kActionScry:
+                {
+                    static bool first_time = true;
+                    if (first_time) {
+                        printf("WARNING: scry is not implemented, action ignored\n");
+                        first_time = false;
+                    }
+                    break;
+                }
+                case kActionInWrath:
+                {
+                    if (stance != kStanceWrath) {
+                        ++i;
+                    }
+                    break;
+                }
+                case kActionLastCardAttack:
+                {
+                    assert(last_card_attack_matters);
+                    if (!last_card_attack) {
+                        ++i;
+                    }
+                    break;
+                }
+                case kActionLastCardSkill:
+                {
+                    assert(last_card_skill_matters);
+                    if (!last_card_skill) {
+                        ++i;
+                    }
+                    break;
+                }
                 default:
+                {
+                    printf("ERROR: unexpected action type\n");
+                    exit(1);
                     assert(false);
+                }
             }
         }
+        last_card_attack = card.flag.attack;
+        last_card_skill = card.flag.skill;
     }
-    // copy the given node and return a reference to the copy
-    //Node & CreateChild(std::list<Node> & all_nodes) {
-    //    all_nodes.push_back(*this);
-    //    Node & new_node = *all_nodes.rbegin();
-    //    new_node.child.clear();
-    //    new_node.parent = this;
-    //    AddChild(new_node);
-    //    return new_node;
-    //}
     // return true if this node is strictly worse or equal to the given node
     bool IsWorseOrEqual(const Node & that) const {
+        if (last_card_attack_matters &&
+                last_card_attack != that.last_card_attack) {
+            return false;
+        }
+        if (last_card_skill_matters &&
+                last_card_skill != that.last_card_skill) {
+            return false;
+        }
+        if (stance != that.stance) {
+            return false;
+        }
         if (that.IsBattleDone() &&
                 that.GetMaxFinalObjective() >= GetMaxFinalObjective()) {
             return true;
@@ -1115,6 +1183,9 @@ struct Node {
             return false;
         }
         if (cards_to_draw != that.cards_to_draw) {
+            return false;
+        }
+        if (hand != that.hand) {
             return false;
         }
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
@@ -1139,290 +1210,9 @@ struct Node {
         }
         return true;
     }
-    //// find all nodes in which we can play cards
-    //void FindChoiceNodes(
-    //        std::list<Node> & all_nodes,
-    //        std::deque<Node *> & recent_node) {
-    //    //std::cout << "\nExpanding: " << ToString() << "\n";
-    //    std::vector<Node *> hanging_nodes;
-    //    player_choice = true;
-    //    Node * best_path = nullptr;
-    //    hanging_nodes.push_back(this);
-    //    // nodes at which the player no longer has a choice
-    //    // (e.g. after pressing end turn or after player or all mobs are dead)
-    //    std::vector<Node *> terminal_node;
-    //    while (!hanging_nodes.empty()) {
-    //        // loop through each node we need to expand
-    //        std::vector<Node *> new_hanging_nodes;
-    //        for (auto & this_node_ptr : hanging_nodes) {
-    //            Node & this_node = *this_node_ptr;
-    //            // add end the turn node
-    //            Node & new_node = this_node.CreateChild(all_nodes);
-    //            new_node.parent_decision.type = kDecisionEndTurn;
-    //            new_node.EndTurn();
-    //            if (new_node.hp == 0) {
-    //                printf("Dead!\n");
-    //            }
-    //            if (new_node.IsBattleDone() &&
-    //                new_node.GetMaxFinalObjective() == GetMaxFinalObjective()) {
-    //                best_path = &new_node;
-    //                break;
-    //            }
-    //            terminal_node.push_back(&new_node);
-    //            // play all possible cards
-    //            for (std::size_t i = 0; i < this_node.hand.card.size(); ++i) {
-    //                // skip this card if it's too expensive
-    //                auto & card = *card_index[this_node.hand.card[i].first];
-    //                if (card.cost > this_node.energy) {
-    //                    continue;
-    //                }
-    //                // play this card
-    //                if (card.targeted) {
-    //                    for (int m = 0; m < 5; ++m) {
-    //                        if (!this_node.monster[m].Exists()) {
-    //                            continue;
-    //                        }
-    //                        Node & new_node = this_node.CreateChild(all_nodes);
-    //                        new_node.parent_decision.type = kDecisionPlayCard;
-    //                        uint16_t index = this_node.hand.card[i].first;
-    //                        new_node.parent_decision.argument[0] = index;
-    //                        new_node.hand.RemoveCard(index);
-    //                        new_node.PlayCard(index, m);
-    //                        // if this is the best possible objective,
-    //                        // don't process any further choices
-    //                        if (new_node.IsBattleDone() &&
-    //                                new_node.GetMaxFinalObjective() == GetMaxFinalObjective()) {
-    //                            best_path = &new_node;
-    //                            break;
-    //                        }
-    //                        // add to exhaust or discard pile
-    //                        if (card.exhausts) {
-    //                            new_node.exhaust_pile.AddCard(index);
-    //                        } else {
-    //                            new_node.discard_pile.AddCard(index);
-    //                        }
-    //                        // add new decision point
-    //                        new_hanging_nodes.push_back(&new_node);
-    //                    }
-    //                } else {
-    //                    Node & new_node = this_node.CreateChild(all_nodes);
-    //                    new_node.parent_decision.type = kDecisionPlayCard;
-    //                    uint16_t index = this_node.hand.card[i].first;
-    //                    new_node.parent_decision.argument[0] = index;
-    //                    new_node.hand.RemoveCard(index);
-    //                    new_node.PlayCard(index);
-    //                    // if this is the best possible objective,
-    //                    // don't process any further choices
-    //                    if (new_node.IsBattleDone() &&
-    //                        new_node.GetMaxFinalObjective() == GetMaxFinalObjective()) {
-    //                        best_path = &new_node;
-    //                        break;
-    //                    }
-    //                    if (card.exhausts) {
-    //                        new_node.exhaust_pile.AddCard(index);
-    //                    } else {
-    //                        new_node.discard_pile.AddCard(index);
-    //                    }
-    //                    new_hanging_nodes.push_back(&new_node);
-    //                }
-    //                if (best_path != nullptr) {
-    //                    break;
-    //                }
-    //            }
-    //            if (best_path != nullptr) {
-    //                break;
-    //            }
-    //        }
-    //        if (best_path != nullptr) {
-    //            break;
-    //        }
-    //        hanging_nodes = new_hanging_nodes;
-    //    }
-    //    // if we have a definitive best path, eliminate all other choices
-    //    if (best_path != nullptr) {
-    //        //std::cout << "Found definitive best path\n";
-    //        //std::cout << "--> " << best_path->ToString() << "\n";
-    //        Node * node = best_path;
-    //        while (node != this) {
-    //            // delete all other children except for this one
-    //            if (node->parent->child.size() != 1) {
-    //                node->parent->child.clear();
-    //                node->parent->child.push_back(node);
-    //            }
-    //            node = node->parent;
-    //        }
-    //        return;
-    //    }
-    //    // find nodes which are equal or worse than another node and remove them
-    //    std::vector<bool> bad_node(terminal_node.size(), false);
-    //    for (std::size_t i = 0; i < terminal_node.size(); ++i) {
-    //        Node & node_i = *terminal_node[i];
-    //        if (bad_node[i]) {
-    //            continue;
-    //        }
-    //        for (std::size_t j = 0; j < terminal_node.size(); ++j) {
-    //            if (i == j || bad_node[j]) {
-    //                continue;
-    //            }
-    //            Node & node_j = *terminal_node[j];
-    //            if (node_j.IsWorseOrEqual(node_i)) {
-    //                bad_node[j] = true;
-    //            }
-    //        }
-    //    }
-    //    if (false && terminal_node.size() > 1) {
-    //        for (std::size_t i = 0; i < terminal_node.size(); ++i) {
-    //            if (!bad_node[i]) {
-    //                std::cout << "--> ";
-    //            }
-    //            std::cout << terminal_node[i]->ToString() << "\n";
-    //        }
-    //    }
-    //    // at least one node must be good
-    //    assert(std::find(bad_node.begin(), bad_node.end(), false) != bad_node.end());
-    //    // remove bad choices and their parents where possible
-    //    for (std::size_t i = 0; i < terminal_node.size(); ++i) {
-    //        if (!bad_node[i]) {
-    //            continue;
-    //        }
-    //        // remove this node from its parent and prune empty nodes
-    //        Node * node_ptr = terminal_node[i];
-    //        while (node_ptr != this && node_ptr->child.empty()) {
-    //            auto & vec = node_ptr->parent->child;
-    //            auto it = std::find(vec.begin(), vec.end(), node_ptr);
-    //            assert(it != vec.end());
-    //            vec.erase(it);
-    //            node_ptr = node_ptr->parent;
-    //        }
-    //    }
-    //    // add good terminal nodes unless they're done
-    //    for (std::size_t i = 0; i < terminal_node.size(); ++i) {
-    //        if (bad_node[i]) {
-    //            continue;
-    //        }
-    //        if (!terminal_node[i]->IsBattleDone()) {
-    //            recent_node.push_back(terminal_node[i]);
-    //        }
-    //    }
-    //}
-    // find solved terminal leaves and put them in a list along with
-    // probability to reach each one
-    void FindTerminalLeaves(
-            /*double p,*/
-            std::list<std::pair<double, Node *>> &end_states) {
-        if (child.empty() && tree_solved) {
-            end_states.push_back(std::pair<double, Node *>(this->probability, this));
-        } else {
-            for (auto & this_ptr : child) {
-                //double new_p = p;
-                //if (!player_choice) {
-                //    new_p *= this_ptr->probability;
-                //}
-                this_ptr->FindTerminalLeaves(/*new_p,*/ end_states);
-            }
-        }
-    }
-    //// verify this node and return true if everything checks out
-    //bool Verify() {
-    //    bool pass = true;
-    //    if (child.empty()) {
-    //        return true;
-    //    }
-    //    if (player_choice && tree_solved) {
-    //        assert(child.size() == 1);
-    //        //assert(child[0]->probability == 1.0);
-    //    }
-    //    double p = 0.0;
-    //    for (auto & ptr : child) {
-    //        //if (player_choice) {
-    //        //    assert(ptr->probability == 1.0);
-    //        //}
-    //        pass = pass && ptr->Verify();
-    //        p += ptr->probability;
-    //    }
-    //    //if (!player_choice) {
-    //    //    if (abs(p - 1.0) > 1e-10) {
-    //    //        pass = false;
-    //    //        printf("ERROR: probability (%g) != 1\n", p);
-    //    //        PrintTree();
-    //    //    }
-    //    //}
-    //    // if all children are solved, this should be solved as well
-    //    if (!child.empty()) {
-    //        bool children_solved = true;
-    //        for (auto & it : child) {
-    //            if (!it->tree_solved) {
-    //                children_solved = false;
-    //            }
-    //        }
-    //        if (tree_solved && !children_solved) {
-    //            PrintTree();
-    //            printf("ERROR: incorrectly marked solved\n");
-    //            pass = false;
-    //        }
-    //        if (!tree_solved && children_solved) {
-    //            PrintTree();
-    //            printf("ERROR: incorrectly not marked solved\n");
-    //            pass = false;
-    //        }
-    //    }
-    //    return pass;
-    //}
     // return true if this is a terminal node
     bool IsTerminal() const {
         return child.empty() && IsBattleDone();
-    }
-    // print out completed tree stats
-    void PrintStats() {
-        std::cout << "Top node: " << ToString() << "\n";
-        std::cout << "Children:\n";
-        for (auto it : child) {
-            std::cout << "- " << it->ToString() << "\n";
-        }
-        std::cout << "\n";
-        if (!keep_entire_tree_in_memory) {
-            return;
-        }
-        std::cout << "Solution tree has " << CountNodes() << " nodes.\n";
-        // get a list of final states and probability of reaching each one
-        std::list<std::pair<double, Node *>> end_states;
-        // walk tree
-        FindTerminalLeaves(/*1.0, */end_states);
-        double check = 0.0;
-        for (auto & ptr : end_states) {
-            check += ptr.first;
-        }
-        if (abs(check - 1.0) > 1e-10) {
-            printf("ERROR: total probability (%g) not 1\n", check);
-        }
-        // probability of dying
-        double death_chance = 0.0;
-        // find probability of each ending objectives
-        std::map<double, double> final_objective;
-        // find distribution of turns
-        std::map<uint16_t, double> battle_length;
-        // walk through tree to populate above stats
-        for (auto & ptr : end_states) {
-            battle_length[ptr.second->turn] += ptr.first;
-            final_objective[ptr.second->composite_objective] += ptr.first;
-            if (ptr.second->composite_objective == 0) {
-                death_chance += ptr.first;
-            }
-        }
-        // get average length
-        double average_turns = 0;
-        for (auto & it : battle_length) {
-            average_turns += it.first * it.second;
-        }
-        std::cout << "Average battle length is " << average_turns
-            << " (" << battle_length.rbegin()->first << " in longest case)\n";
-        double average_objective = 0;
-        for (auto & it : final_objective) {
-            average_objective += it.first * it.second;
-        }
-        std::cout << "Average final objective is " << average_objective
-            << " (" << final_objective.begin()->first << " in worst case)\n";
-        std::cout << "Death in " << (death_chance * 100) << "% of cases\n";
     }
 };
 
@@ -1431,3 +1221,6 @@ std::stringstream & operator<< (std::stringstream & out, const Node & node) {
     out << node.ToString();
     return out;
 }
+
+bool Node::last_card_skill_matters = false;
+bool Node::last_card_attack_matters = false;

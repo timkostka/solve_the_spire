@@ -11,6 +11,7 @@
 
 // enum for fight type
 enum FightEnum : uint8_t {
+    kFightNone,
     kFightAct1EasyCultist,
     kFightAct1EasyJawWorm,
     kFightAct1EasyLouses,

@@ -51,6 +51,15 @@ struct CardCollection {
             return false;
         }*/
     }
+    // return number of the given card in the pile
+    uint16_t CountCard(uint16_t card_index) const {
+        for (auto & this_card : card) {
+            if (this_card.first == card_index) {
+                return this_card.second;
+            }
+        }
+        return 0;
+    }
     // return number of cards in pile
     uint16_t Count() const {
         return total;
@@ -97,9 +106,9 @@ struct CardCollection {
     }
     // add a card by string
     void AddCard(const char * card_name, uint16_t count = 1) {
-        for (std::size_t i = 0; i < card_index.size(); ++i) {
-            const Card & card = *card_index[i];
-            if (strcmp(card.name, card_name) == 0) {
+        for (std::size_t i = 0; i < card_map.size(); ++i) {
+            const Card & card = *card_map[i];
+            if (card.name == card_name) {
                 AddCard(card, count);
                 return;
             }
@@ -233,7 +242,7 @@ struct CardCollection {
             if (i.second > 1) {
                 ss << (int) i.second << "x";
             }
-            ss << card_index[i.first]->name;
+            ss << card_map[i.first]->name;
         }
         ss << "}";
         return ss.str();

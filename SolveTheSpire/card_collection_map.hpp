@@ -30,10 +30,21 @@ struct CardCollectionPtr {
         CardCollection empty_deck;
         ptr = CardCollectionMap::Find(empty_deck);
     }
+    // compare two
+    bool operator == (const CardCollectionPtr & that) const {
+        return ptr == that.ptr;
+    }
+    bool operator != (const CardCollectionPtr & that) const {
+        return !(*this == that);
+    }
     // add a card
     // return number of cards in pile
     uint16_t Count() const {
         return ptr->total;
+    }
+    // return number of the given card in the pile
+    uint16_t CountCard(uint16_t card_index) const {
+        return ptr->CountCard(card_index);
     }
     // return true if pile is empty
     bool IsEmpty() const {

@@ -132,7 +132,7 @@ struct BuffState {
         }
     }
     // convert this to string form
-    std::string ToString() {
+    std::string ToString() const {
         std::ostringstream ss;
         ss << "Buff(";
         bool first = true;
@@ -145,5 +145,6 @@ struct BuffState {
             //ss << "s"
         }
         ss << ")";
+        return ss.str();
     }
 };

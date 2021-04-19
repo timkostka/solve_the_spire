@@ -83,7 +83,7 @@ struct Monster {
         return base != nullptr && hp > 0;
     }
     // take X damage
-    void TakeDamage(uint16_t damage) {
+    void TakeDamage(uint16_t damage, bool attack_damage) {
         // reduce block
         if (block) {
             if (block >= damage) {
@@ -100,7 +100,7 @@ struct Monster {
             hp = 0;
         } else {
             hp -= damage;
-            if (hp > 0 && buff[kBuffCurlUp]) {
+            if (attack_damage && hp > 0 && buff[kBuffCurlUp]) {
                 block += buff[kBuffCurlUp];
                 buff[kBuffCurlUp] = 0;
             }
@@ -112,7 +112,7 @@ struct Monster {
         if (buff.value[kBuffVulnerable]) {
             damage = (uint16_t) (damage * 1.5);
         }
-        TakeDamage(damage);
+        TakeDamage(damage, true);
     }
     // return true if monster is dead
     bool IsDead() const {
@@ -139,6 +139,24 @@ struct Monster {
         last_intent[2] = last_intent[1];
         last_intent[1] = last_intent[0];
         last_intent[0] = intent_index;
+    }
+    // convert to a string
+    std::string ToString() const {
+        if (!Exists()) {
+            return "";
+        }
+        std::string result = base->name;
+        result += "(";
+        result += std::to_string(hp) + "/" + std::to_string(max_hp);
+        if (last_intent[0] != 255) {
+            result += ", " + base->intent[last_intent[0]].name;
+        }
+        auto buff_string = buff.ToString();
+        if (!buff_string.empty()) {
+            result += ", " + buff.ToString();
+        }
+        result += ")";
+        return result;
     }
 };
 

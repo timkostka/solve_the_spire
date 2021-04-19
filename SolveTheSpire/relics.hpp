@@ -1,18 +1,21 @@
 #pragma once
 
+#include <string>
+#include <map>
+
 struct RelicStruct {
     // starting relics
     
     // 1 if we have the relic, 0 otherwise
     unsigned int burning_blood : 1;
     unsigned int ring_of_the_snake : 1;
-    //unsigned int cracked_core : 1;
-    //unsigned int pure_water : 1;
+    unsigned int cracked_core : 1;
+    unsigned int pure_water : 1;
 
     // common relics
 
     unsigned int akabeko : 1;
-    // set to 1 after first attack
+    // set to 0 after first attack
     unsigned int akabeko_active : 1;
     unsigned int anchor : 1;
     unsigned int ancient_tea_set : 1;
@@ -73,10 +76,86 @@ struct RelicStruct {
     //unsigned int cursed_key : 1;
 
     // constructor
-    RelicStruct() {
+    /*RelicStruct() {
         memset(this, 0, sizeof(*this));
+    }*/
+
+    // add the second relic to the first relic set
+    void operator += (const RelicStruct & that) {
+        auto one_ptr = (uint8_t *) this;
+        auto two_ptr = (const uint8_t *) &that;
+        for (int i = 0; i < sizeof(*this); ++i) {
+            *one_ptr++ |= *two_ptr++;
+        }
     }
 
+    // return true if this contains the given relic
+    bool Contains(const RelicStruct & that) const {
+        auto one_ptr = (uint8_t *) this;
+        auto two_ptr = (const uint8_t *) &that;
+        for (int i = 0; i < sizeof(*this); ++i) {
+            if ((*one_ptr & *two_ptr) != *two_ptr) {
+                return false;
+            }
+            ++one_ptr;
+            ++two_ptr;
+        }
+        return true;
+    }
+
+    // convert to string form
+    std::string ToString() const;
 };
 
 static_assert(sizeof(RelicStruct) == 4, "");
+
+// map between strings and relics
+std::map<std::string, RelicStruct> relic_map = {
+    {"Burning Blood", {.burning_blood = 1}},
+    {"Ring of the Snake", {.ring_of_the_snake = 1}},
+    {"Cracked Core", {.cracked_core = 1}},
+    {"Pure Water", {.pure_water = 1}},
+
+    {"Akabeko", {.akabeko = 1}},
+    {"Anchor", {.anchor = 1}},
+    {"Ancient Tea Set", {.ancient_tea_set = 1}},
+    {"Bag of Marbles", {.bag_of_marbles = 1}},
+    {"Bag of Preparation", {.bag_of_preparation = 1}},
+
+    {"Blood  Vial", {.blood_vial = 1}},
+    {"Bronze Scales", {.bronze_scales = 1}},
+    {"Lantern", {.lantern = 1}},
+    {"Oddly Smooth Stone", {.oddly_smooth_stone = 1}},
+    {"Orichalcum", {.orichalcum = 1}},
+    {"Vajra", {.preserved_insect = 1}},
+
+    {"Meat on the Bone", {.meat_on_the_bone = 1}},
+    {"Cursed Key", {.cursed_key = 1}},
+    {"Runic Pyramid", {.runic_pyramid = 1}},
+    /*{"Akabeko", {.akabeko = 1}},
+    {"Akabeko", {.akabeko = 1}},
+    {"Akabeko", {.akabeko = 1}},
+    {"Akabeko", {.akabeko = 1}},*/
+};
+
+std::string RelicStruct::ToString() const {
+    bool first = true;
+    std::string result;
+    for (auto & item : relic_map) {
+        if (Contains(item.second)) {
+            if (!first) {
+                result += ", ";
+            }
+            first = false;
+            result += item.first;
+        }
+    }
+    return result;
+};
+
+//struct test_struct {
+//    int x;
+//    int y;
+//};
+//
+//test_struct xasdf = {.x = 6, .y = 7};
