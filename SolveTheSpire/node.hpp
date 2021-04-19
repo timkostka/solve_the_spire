@@ -231,6 +231,8 @@ struct Node {
     // this function may only use information within this node--no information
     // from children is allowed
     double GetPathObjective() const {
+        // DEBUG
+        return CalculateCompositeObjective() + layer * 1000;
         double x = 5.0 * hp;
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             if (monster[i].Exists()) {
@@ -378,7 +380,7 @@ struct Node {
         return true;
     }
     // return an estimate for the composite objective by looking at direct children
-    double CalculateCompositeObjective() {
+    double CalculateCompositeObjective() const {
         // if no children, just get max
         if (child.empty()) {
             return GetMaxFinalObjective();
@@ -421,11 +423,11 @@ struct Node {
         }
     }
     // evaluate the composite objective of this node and all its descendents
-    void CalculateCompositeObjectiveIncludingChildren() {
+    void CalculateCompositeObjectiveOfChildren() {
         for (auto & child_ptr : child) {
-            child_ptr->CalculateCompositeObjectiveIncludingChildren();
+            child_ptr->CalculateCompositeObjectiveOfChildren();
+            child_ptr->composite_objective = child_ptr->CalculateCompositeObjective();
         }
-        composite_objective = CalculateCompositeObjective();
     }
     // return true if all children are solved
     bool AreChildrenSolved() {
@@ -530,7 +532,7 @@ struct Node {
         std::ostringstream ss;
         ss << "Game(";
         bool first_item = true;
-        ss.precision(3);
+        ss.precision(6);
         if (tree_solved) {
             ss << "solved, ";
             ss << "obj=" << composite_objective;
@@ -539,6 +541,7 @@ struct Node {
             ss << "maxobj=" << composite_objective;
             first_item = false;
         }
+        ss.precision(3);
         if (IsBattleDone()) {
             if (first_item) {
                 first_item = false;

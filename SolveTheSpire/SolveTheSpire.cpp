@@ -615,7 +615,7 @@ struct TreeStruct {
             }
         }
         // calculate composite objective of all nodes still in tree
-        top_node.CalculateCompositeObjectiveIncludingChildren();
+        top_node.CalculateCompositeObjectiveOfChildren();
         for (std::size_t i = 0; i < ending_node.size(); ++i) {
             if (bad_node[i]) {
                 continue;
@@ -678,30 +678,48 @@ struct TreeStruct {
         std::cout.rdbuf(oldCoutStreamBuf);
         outFile.close();
     }
+    void VerifyCompositeObjective(const Node & node) {
+        double x = node.CalculateCompositeObjective();
+        if (x != node.composite_objective) {
+            printf("ERROR!  composite objective (%g) not as calculated (%g)\n",
+                node.composite_objective, x);
+            node.PrintTree();
+            exit(1);
+        }
+        for (auto & this_child_ptr : node.child) {
+            VerifyCompositeObjective(*this_child_ptr);
+        }
+    }
+    // verify integrity of terminal nodes
+    // I'm seeing a problem where the expected final HP is different than the
+    // composite objective.  Example:
+    //   Tree stats: maxobj=64.5864
+    //   Battle setup:
+    //   - Starting HP: 72/80
+    //   - Starting deck: {11 cards: 5xStrike, 4xDefend, Bash, Ascender's Bane}
+    //   Result stats:
+    //   - Expected HP change is -5.42
+    // We would expect the top node composite objective to be 72 - 5.42 = 66.58
+    // but it's 64.58 instead.  This function here is to figure out why.
+    void VerifyTerminalNodes() {
+        for (auto node_ptr : terminal_nodes) {
+            auto & p = node_ptr->probability;
+            while (node_ptr != nullptr) {
+                const auto & node = *node_ptr;
+                double x = node.CalculateCompositeObjective();
+                if (x != node.composite_objective) {
+                    printf("ERROR!  composite objective (%g) not as calculated (%g)\n",
+                        node.composite_objective, x);
+                    node.PrintTree();
+                    exit(1);
+                }
+                node_ptr = node_ptr->parent;
+            }
+        }
+    }
     // print stats from the tree
-    //    Fight stats :
-    //    - Expected fight length is X rounds (min of X, max of X)
-    //    - Expected HP change is -7.32153 (min of -21, max of +6)
-    //    - Battle is lost 0 % of the time (expected remaining mob HP is X)
-    //    Card stats :
-    //    - Strike : played X / Y times (78%)
-    //    - Defend : played X / Y times (27%)
-    //    - Bash : played X / Y times (25.321%)
-    //    - Ascender's Bane: unplayable, drawn 1 times
-    //    Tree stats :
-    //    - Expanded a total of X nodes.
-    //    - Max of X nodes in use.
-    //    - Completed tree contains X nodes including X terminal nodes.
-    //    - Expected final objective of X
-    //    - min of X
-    //    - 1 % threshold of X
-    //    - 5 % threshold of X
-    //    - 25 % threshold of X
-    //    - median of X
-    //    - 75 % threshold of X
-    //    - 95 % threshold of X
-    //    - max of X
     void PrintTreeStats() {
+        VerifyTerminalNodes();
         // debug
         for (auto & node_ptr : terminal_nodes) {
             if (!node_ptr->HasAncestor(*top_node_ptr)) {
@@ -798,6 +816,9 @@ struct TreeStruct {
         double death_chance = 0.0;
         double remaining_mob_hp = 0.0;
         for (auto & node_ptr : terminal_nodes) {
+            if (node_ptr->hp != node_ptr->composite_objective) {
+                printf("ERROR\n");
+            }
             auto & p = node_ptr->probability;
             if (node_ptr->hp == 0) {
                 death_chance += p;
@@ -808,7 +829,7 @@ struct TreeStruct {
                 }
             }
             {
-                int16_t x = (int) node_ptr->hp - top_node_ptr->hp;
+                int16_t x = (int) node_ptr->hp - (int) top_node_ptr->hp;
                 expected_hp_delta += p * x;
                 if (hp_delta.find(x) == hp_delta.end()) {
                     hp_delta[x] = p;
@@ -854,7 +875,7 @@ struct TreeStruct {
             printf("- Variations in mob HP and stats are normalized\n");
         }
         printf("\nResult stats:\n");
-        printf("- Expected HP change is %+.3g\n", expected_hp_delta);
+        printf("- Expected HP change is %+.6g\n", expected_hp_delta);
         printf("- Min/max HP change of %+d and %+d\n",
             hp_delta.begin()->first, hp_delta.rbegin()->first);
         int16_t low_roll_hp = 32767;
@@ -882,11 +903,11 @@ struct TreeStruct {
         // - Expected chance to die is 1% with 24.1 remaining monster HP
         //printf("- Expected HP change is %+g (min %+d, max %+d)\n",
         //    expected_hp_delta, hp_delta.begin()->first, hp_delta.rbegin()->first);
-        printf("- Expected fight length is %g turns (min %u, max %u)\n",
+        printf("- Expected fight length is %.3g turns (min %u, max %u)\n",
             expected_turn_count, turn.begin()->first, turn.rbegin()->first);
         if (death_chance != 0) {
             remaining_mob_hp /= death_chance;
-            printf("- Expected chance to die is %3g%% (%.2f remaining mob HP)\n",
+            printf("- Expected chance to die is %.3g%% (%.2f remaining mob HP)\n",
                 death_chance * 100, remaining_mob_hp);
         }
         printf("\nCards stats:\n");
@@ -961,6 +982,7 @@ struct TreeStruct {
         // loop until we can't update any more
         while (node_ptr != nullptr) {
             auto & node = *node_ptr;
+            //node_ptr->PrintTree(); // DEBUG
             // doesn't make sense to call this on a solved node
             assert(!node.tree_solved);
             // should have children
@@ -1083,9 +1105,10 @@ struct TreeStruct {
             }
             // if objective changed, update parents
             double x = std::max(max_unsolved_objective, max_solved_objective);
+            assert(max_unsolved_objective <= node.composite_objective);
             if (node.tree_solved ||
-                    max_unsolved_objective > node.composite_objective) {
-                node.composite_objective = max_unsolved_objective;
+                    max_unsolved_objective < node.composite_objective) {
+                node.composite_objective = x;
                 // TODO: prune tree
                 DeleteChildren(node);
                 node_ptr = node.parent;
@@ -1197,6 +1220,7 @@ struct TreeStruct {
         // expand nodes until they're all done
         std::size_t iteration = 0;
         while (true) {
+            //VerifyCompositeObjective(*top_node_ptr);
             ++iteration;
             // update every second
             stats_shown = false;
@@ -1260,8 +1284,22 @@ struct TreeStruct {
                 continue;
             }
             // else player can play a card or end turn
+            //if (iteration == 117) {
+            //    this_node.PrintTree();
+            //    top_node_ptr->PrintTree();
+            //    PrintTreeToFile("tree_before.txt");
+            //}
             FindPlayerChoices(this_node);
+            //if (iteration == 117) {
+            //    this_node.PrintTree();
+            //    PrintTreeToFile("tree_middle.txt");
+            //}
             UpdateTree(&this_node);
+            //if (iteration == 117) {
+            //    PrintTreeToFile("tree_after.txt");
+            //    this_node.PrintTree();
+            //    top_node_ptr->PrintTree();
+            //}
         }
         // tree should now be solved
         const double duration = (double) (clock() - start_clock) / CLOCKS_PER_SEC;
@@ -1687,19 +1725,19 @@ int main(int argc, char ** argv) {
             }
         }
     } else {
-        ProcessArgument(start_node, "--character=ironclad");
+        //ProcessArgument(start_node, "--character=ironclad");
         //ProcessArgument(start_node, "--character=silent");
         //ProcessArgument(start_node, "--character=defect");
-        //ProcessArgument(start_node, "--character=watcher");
+        ProcessArgument(start_node, "--character=watcher");
         //start_node.deck.AddCard(card_crush_joints);
         //start_node.deck.RemoveCard(card_ascenders_bane.GetIndex());
         //start_node.deck.RemoveCard(card_vigilance.GetIndex());
 
         start_node.hp = start_node.max_hp * 9 / 10;
-        start_node.fight_type = kFightAct1EasyCultist;
+        //start_node.fight_type = kFightAct1EasyCultist;
         //start_node.fight_type = kFightAct1EasyJawWorm;
         //start_node.fight_type = kFightAct1EasyLouses;
-        //start_node.fight_type = kFightAct1EliteGremlinNob;
+        start_node.fight_type = kFightAct1EliteGremlinNob;
         //start_node.fight_type = kFightAct1EliteLagavulin;
         //start_node.fight_type = kFightTestOneLouse;
     }
@@ -1711,10 +1749,10 @@ int main(int argc, char ** argv) {
 
     start_node.InitializeStartingNode();
 
-    TreeStruct tree(start_node);
-    tree.Expand();
+    //TreeStruct tree(start_node);
+    //tree.Expand();
 
-    //CompareUpgrades(start_node);
+    CompareUpgrades(start_node);
 
     //CompareRelics(start_node);
 
