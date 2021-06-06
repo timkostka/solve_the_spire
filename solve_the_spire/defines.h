@@ -36,3 +36,5 @@ constexpr uint32_t max_nodes_to_print = 500000;
 // display all player choice nodes
 // (this is for debugging only, significantly increases output)
 constexpr bool show_player_choices = false;
+
+//#define USE_ORBS

@@ -82,8 +82,10 @@ struct Node {
     uint8_t orb_slots;
     // focus
     uint8_t focus;
+#ifdef USE_ORBS
     // orbs
     std::vector<OrbStruct> orbs;
+#endif
     // current player HP
     uint16_t hp;
     // amount of block
@@ -151,6 +153,11 @@ struct Node {
     //    energy(0) {
     //    // TODO
     //}
+    // assignment operator
+    //void operator= (const Node & that) {
+    //    memcpy(this, &that, sizeof(*this));
+    //    //printf("ASDF\n");
+    //}
     // add a single child node with 100% probability
     void AddChild(Node & child_node) {
         child.push_back(&child_node);
@@ -164,6 +171,7 @@ struct Node {
     bool IsBattleDone() const {
         return battle_done;
     }
+#ifdef USE_ORBS
     // pop the rightmost orb
     void PopOrb() {
         orbs.erase(orbs.begin());
@@ -227,6 +235,7 @@ struct Node {
             }
         }
     }
+#endif
     // return an objective function used to evaluate the best decision
     // this function may only use information within this node--no information
     // from children is allowed
@@ -487,9 +496,11 @@ struct Node {
         if (relics.ring_of_the_snake) {
             cards_to_draw += 2;
         }
+#ifdef USE_ORBS
         if (relics.cracked_core) {
             ChannelOrb(kOrbLightning);
         }
+#endif
         if (relics.bag_of_preparation) {
             cards_to_draw += 2;
         }
@@ -608,6 +619,7 @@ struct Node {
         } else if (!hand.IsEmpty()) {
             ss << ", hand=" << hand.ToString();
         }
+#ifdef USE_ORBS
         if (!orbs.empty()) {
             ss << ", orbs=";
             ss << orbs[0].ToString();
@@ -615,6 +627,7 @@ struct Node {
                 ss << "," << orbs[i].ToString();
             }
         }
+#endif
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             if (!monster[i].Exists()) {
                 continue;
@@ -728,7 +741,9 @@ struct Node {
         player_choice = false;
         parent_decision.type = kDecisionEndTurn;
         // process orbs
+#ifdef USE_ORBS
         ProcessOrbsEndTurn();
+#endif
         if (!MobsAlive()) {
             FinishBattle();
             return;
@@ -1153,6 +1168,7 @@ struct Node {
                     energy += action.arg[0];
                     break;
                 }
+#ifdef USE_ORBS
                 case kActionChannelOrb:
                 {
                     for (int32_t i = 0; i < action.arg[1]; ++i) {
@@ -1170,6 +1186,7 @@ struct Node {
                     }
                     break;
                 }
+#endif
                 case kActionScry:
                 {
                     static bool first_time = true;

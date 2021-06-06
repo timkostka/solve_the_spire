@@ -35,6 +35,8 @@
 //    // 
 //};
 
+//bool profile = false;
+
 struct MobLayout {
     // probability
     double probability;
@@ -48,25 +50,25 @@ struct MobLayout {
 std::string ToString(std::size_t x) {
     char buffer[32] = {0};
     if (x < 1000) {
-        sprintf_s(buffer, sizeof(buffer), "%u", (unsigned int) x);
+        snprintf(buffer, sizeof(buffer), "%u", (unsigned int) x);
     } else if (x < 10000) {
-        sprintf_s(buffer, sizeof(buffer), "%.2fk", x / 1e3);
+        snprintf(buffer, sizeof(buffer), "%.2fk", x / 1e3);
     } else if (x < 100000) {
-        sprintf_s(buffer, sizeof(buffer), "%.1fk", x / 1e3);
+        snprintf(buffer, sizeof(buffer), "%.1fk", x / 1e3);
     } else if (x < 1000000) {
-        sprintf_s(buffer, sizeof(buffer), "%.0fk", x / 1e3);
+        snprintf(buffer, sizeof(buffer), "%.0fk", x / 1e3);
     } else if (x < 10000000) {
-        sprintf_s(buffer, sizeof(buffer), "%.2fM", x / 1e6);
+        snprintf(buffer, sizeof(buffer), "%.2fM", x / 1e6);
     } else if (x < 100000000) {
-        sprintf_s(buffer, sizeof(buffer), "%.1fM", x / 1e6);
+        snprintf(buffer, sizeof(buffer), "%.1fM", x / 1e6);
     } else if (x < 1000000000) {
-        sprintf_s(buffer, sizeof(buffer), "%.0fM", x / 1e6);
+        snprintf(buffer, sizeof(buffer), "%.0fM", x / 1e6);
     } else if (x < 10000000000) {
-        sprintf_s(buffer, sizeof(buffer), "%.2fB", x / 1e9);
+        snprintf(buffer, sizeof(buffer), "%.2fB", x / 1e9);
     } else if (x < 100000000000) {
-        sprintf_s(buffer, sizeof(buffer), "%.1fB", x / 1e9);
+        snprintf(buffer, sizeof(buffer), "%.1fB", x / 1e9);
     } else {
-        sprintf_s(buffer, sizeof(buffer), "%.0fB", x / 1e9);
+        snprintf(buffer, sizeof(buffer), "%.0fB", x / 1e9);
     }
     return std::string(buffer);
 }
@@ -171,6 +173,8 @@ struct TreeStruct {
     // list of terminal nodes
     // (a terminal node is a node where the battle is over)
     std::set<Node *> terminal_nodes;
+    // duration to solve
+    double solve_duration_s;
     // constructor
     TreeStruct(Node & node) : top_node_ptr(&node) {
         expanded_node_count = 0;
@@ -693,6 +697,26 @@ struct TreeStruct {
             }
         }
     }
+    // return the profile line for this tree
+    std::string GetProfileLine() {
+        char profile_line[256] = {0};
+        //std::ostringstream ss;
+        char buffer[80];
+        time_t rawtime;
+        struct tm * timeinfo;
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d   %H:%M:%S", timeinfo);
+        //snprintf(buffer, sizeof(buffer), );
+        snprintf(profile_line, sizeof(profile_line),
+            "%s   %9s   %8s   %6s   %6.3f s\n",
+            buffer,
+            ToString(created_node_count + reused_node_count).c_str(),
+            ToString(expanded_node_count).c_str(),
+            ToString(top_node_ptr->CountNodes()).c_str(),
+            solve_duration_s);
+        return std::string(profile_line);
+    }
     // print stats from the tree
     void PrintTreeStats() {
         VerifyTerminalNodes();
@@ -911,7 +935,7 @@ struct TreeStruct {
         for (uint16_t i = 0; i < cards_drawn.size(); ++i) {
             chance_of_turn[i] = chance;
             char buffer[32];
-            sprintf_s(buffer, sizeof(buffer), "%d (%.0f%%)", i + 1, chance * 100);
+            snprintf(buffer, sizeof(buffer), "%d (%.0f%%)", i + 1, chance * 100);
             for (std::size_t i = strlen(buffer); i < 11; ++i) {
                 printf(" ");
             }
@@ -1304,7 +1328,9 @@ struct TreeStruct {
             std::cout.rdbuf(oldCoutStreamBuf);
             outFile.close();
         }
+        solve_duration_s = duration;
         VerifyNode(*top_node_ptr);
+        printf("\nPROFILE: %s\n", GetProfileLine().c_str());
     }
 };
 
@@ -1790,6 +1816,8 @@ bool ProcessArgument(Node & node, std::string original_argument) {
             }
         }
         return found;
+    //} else if (name == "profile") {
+    //    profile = true;
     } else if (name == "relic" || name == "relics") {
         CombineRelic(node.relics, ParseRelics(value));
     } else if (name == "fight") {
@@ -1857,19 +1885,31 @@ int main(int argc, char ** argv) {
         //start_node.deck.AddCard(card_ghostly_armor);
         //start_node.deck.AddCard(card_impervious);
         //start_node.deck.AddCard(card_pummel);
-
         //start_node.deck.AddCard(card_crush_joints);
-        start_node.deck.RemoveCard(card_ascenders_bane.GetIndex());
+
+        //start_node.deck.RemoveCard(card_ascenders_bane.GetIndex());
         //start_node.deck.RemoveCard(card_vigilance.GetIndex());
 
         start_node.hp = start_node.max_hp * 9 / 10;
-        start_node.fight_type = kFightAct1EasyCultist;
+        //start_node.fight_type = kFightAct1EasyCultist;
         //start_node.fight_type = kFightAct1EasyJawWorm;
         //start_node.fight_type = kFightAct1EasyLouses;
-        //start_node.fight_type = kFightAct1EliteGremlinNob;
+        start_node.fight_type = kFightAct1EliteGremlinNob;
         //start_node.fight_type = kFightAct1EliteLagavulin;
         //start_node.fight_type = kFightTestOneLouse;
     }
+
+    /*if (profile) {
+        Node profile_node;
+        start_node.hp = 0;
+        start_node.max_hp = 0;
+        start_node.deck.Clear();
+        start_node.relics = {0};
+        start_node.fight_type = kFightNone;
+        TreeStruct profile_tree(profile_node);
+        profile_tree.Expand();
+        printf("PROFILE: %s\n", profile_tree.GetProfileLine().c_str());
+    }*/
 
     if (start_node.deck.IsEmpty() || start_node.hp == 0 || start_node.fight_type == kFightNone) {
         printf("ERROR: invalid settings\n");

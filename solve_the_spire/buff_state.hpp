@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 
 // buff/debuff type
 enum BuffType : uint8_t {
