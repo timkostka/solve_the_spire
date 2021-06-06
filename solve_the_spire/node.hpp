@@ -63,7 +63,7 @@ struct Node {
     static bool last_card_skill_matters;
     static bool last_card_attack_matters;
     // fight type
-    FightEnum fight_type;
+    //FightEnum fight_type;
     // node number (to help with sorting order)
     //std::size_t index;
     // turn number
@@ -603,7 +603,7 @@ struct Node {
         }
         if (turn == 0) {
             ss << ", deck=" << deck.ToString();
-            ss << ", fight=" << fight_map[fight_type].name;
+            //ss << ", fight=" << fight_map[fight_type].name;
         }
         if (turn == 0) {
         }

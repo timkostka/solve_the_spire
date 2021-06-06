@@ -157,6 +157,8 @@ struct PathObjectiveSort {
 struct TreeStruct {
     // pointer to top node
     Node * top_node_ptr;
+    // fight type
+    FightEnum fight_type;
     // list of deleted nodes which we can reuse
     // (in order to avoid thrashing memory with new/delete)
     std::vector<Node *> deleted_nodes;
@@ -180,6 +182,7 @@ struct TreeStruct {
         expanded_node_count = 0;
         created_node_count = 0;
         reused_node_count = 0;
+        fight_type = kFightNone;
     }
     // destructor
     ~TreeStruct() {
@@ -612,16 +615,16 @@ struct TreeStruct {
     // start new battle and generate mobs
     void GenerateBattle(Node & this_node) {
         assert(this_node.turn == 0);
-        if (fight_map.find(this_node.fight_type) == fight_map.end()) {
+        if (fight_map.find(fight_type) == fight_map.end()) {
             printf("ERROR: fight_type not found in fight_map\n");
             exit(1);
         }
         std::vector<std::pair<double, std::vector<Monster>>> mob_layouts;
-        if (fight_map[this_node.fight_type].base_mob != nullptr) {
+        if (fight_map[fight_type].base_mob != nullptr) {
             mob_layouts = GenerateFightSingleMob(
-                *fight_map[this_node.fight_type].base_mob);
+                *fight_map[fight_type].base_mob);
         } else {
-            mob_layouts = fight_map[this_node.fight_type].generation_function();
+            mob_layouts = fight_map[fight_type].generation_function();
         }
         //std::cout << "Generated " << mob_layouts.size() << " different mob layouts.\n";
         for (auto & layout : mob_layouts) {
@@ -766,13 +769,14 @@ struct TreeStruct {
                     cards_played.resize(node.turn);
                 }
                 // count cards drawn
+                std::size_t turn_index = (std::size_t) node.turn - 1;
                 if (node.cards_to_draw == 0 && parent.cards_to_draw > 0) {
                     for (auto & item : node.hand.ptr->card) {
-                        if (cards_drawn[node.turn - 1].find(item.first) ==
-                                cards_drawn[node.turn - 1].end()) {
-                            cards_drawn[node.turn - 1][item.first] = 0.0;
+                        if (cards_drawn[turn_index].find(item.first) ==
+                                cards_drawn[turn_index].end()) {
+                            cards_drawn[turn_index][item.first] = 0.0;
                         }
-                        cards_drawn[node.turn - 1][item.first] += p * item.second;
+                        cards_drawn[turn_index][item.first] += p * item.second;
                         card_indices.insert(item.first);
                     }
                 }
@@ -780,11 +784,11 @@ struct TreeStruct {
                 if (parent.player_choice &&
                         node.parent_decision.type == kDecisionPlayCard) {
                     auto index = node.parent_decision.argument[0];
-                    if (cards_played[node.turn - 1].find(index) ==
-                            cards_played[node.turn - 1].end()) {
-                        cards_played[node.turn - 1][index] = 0.0;
+                    if (cards_played[turn_index].find(index) ==
+                            cards_played[turn_index].end()) {
+                        cards_played[turn_index][index] = 0.0;
                     }
-                    cards_played[node.turn - 1][index] += p;
+                    cards_played[turn_index][index] += p;
                     card_indices.insert(index);
                 }
             }
@@ -859,7 +863,7 @@ struct TreeStruct {
             top_node_ptr->relics.ToString().c_str());
         if (top_node_ptr->turn == 0) {
             printf("- Battle type: %s\n",
-                fight_map[top_node_ptr->fight_type].name.c_str());
+                fight_map[fight_type].name.c_str());
         } else {
             printf("- Starting mobs are: ");
             bool first = true;
@@ -1793,7 +1797,8 @@ RelicStruct ParseRelics(std::string text) {
 }
 
 // process the given argument, return true if successful
-bool ProcessArgument(Node & node, std::string original_argument) {
+bool ProcessArgument(TreeStruct & tree, std::string original_argument) {
+    Node & node = *tree.top_node_ptr;
     std::string argument = NormalizeString(original_argument);
     if (argument.find("=") == std::string::npos) {
         return false;
@@ -1824,7 +1829,7 @@ bool ProcessArgument(Node & node, std::string original_argument) {
         bool found = false;
         for (auto & item : fight_map) {
             if (value == NormalizeString(item.second.name)) {
-                node.fight_type = item.first;
+                tree.fight_type = item.first;
                 printf("Setting fight to %s\n", item.second.name.c_str());
                 found = true;
                 break;
@@ -1866,18 +1871,20 @@ int main(int argc, char ** argv) {
     start_node.max_hp = 0;
     start_node.deck.Clear();
     start_node.relics = {0};
-    start_node.fight_type = kFightNone;
+    //start_node.fight_type = kFightNone;
+
+    TreeStruct tree(start_node);
 
     // if command line arguments given, process them
     if (argc > 1) {
         for (int i = 1; i < argc; ++i) {
-            if (!ProcessArgument(start_node, argv[i])) {
+            if (!ProcessArgument(tree, argv[i])) {
                 printf("ERROR: count not process argument %s\n", argv[i]);
                 exit(1);
             }
         }
     } else {
-        ProcessArgument(start_node, "--character=ironclad");
+        ProcessArgument(tree, "--character=ironclad");
         //ProcessArgument(start_node, "--character=silent");
         //ProcessArgument(start_node, "--character=defect");
         //ProcessArgument(start_node, "--character=watcher");
@@ -1894,7 +1901,7 @@ int main(int argc, char ** argv) {
         //start_node.fight_type = kFightAct1EasyCultist;
         //start_node.fight_type = kFightAct1EasyJawWorm;
         //start_node.fight_type = kFightAct1EasyLouses;
-        start_node.fight_type = kFightAct1EliteGremlinNob;
+        tree.fight_type = kFightAct1EliteGremlinNob;
         //start_node.fight_type = kFightAct1EliteLagavulin;
         //start_node.fight_type = kFightTestOneLouse;
     }
@@ -1911,14 +1918,14 @@ int main(int argc, char ** argv) {
         printf("PROFILE: %s\n", profile_tree.GetProfileLine().c_str());
     }*/
 
-    if (start_node.deck.IsEmpty() || start_node.hp == 0 || start_node.fight_type == kFightNone) {
+    if (start_node.deck.IsEmpty() || start_node.hp == 0 || tree.fight_type == kFightNone) {
         printf("ERROR: invalid settings\n");
         exit(1);
     }
 
     start_node.InitializeStartingNode();
 
-    TreeStruct tree(start_node);
+    //TreeStruct tree(start_node);
     tree.Expand();
 
     //CompareUpgrades(start_node);
