@@ -291,7 +291,10 @@ struct TreeStruct {
             return;
         }
         // draw as many cards as we can
-        uint16_t to_draw = std::min(node.cards_to_draw, node.draw_pile.Count());
+        card_count_t to_draw = node.cards_to_draw;
+        if (node.draw_pile.Count() < to_draw) {
+            to_draw = node.draw_pile.Count();
+        }
         if (node.hand.Count() + to_draw > 10) {
             to_draw = 10 - node.hand.Count();
         }
@@ -452,7 +455,7 @@ struct TreeStruct {
                             }
                             Node & new_node = CreateChild(this_node, false);
                             new_node.layer = top_node.layer + 1;
-                            uint16_t index = this_node.hand.ptr->card[i].first;
+                            card_index_t index = this_node.hand.ptr->card[i].first;
                             new_node.hand.RemoveCard(index);
                             new_node.PlayCard(index, m);
                             new_node.SortMobs();
@@ -480,7 +483,7 @@ struct TreeStruct {
                     } else {
                         Node & new_node = CreateChild(this_node, false);
                         new_node.layer = top_node.layer + 1;
-                        uint16_t index = this_node.hand.ptr->card[i].first;
+                        card_index_t index = this_node.hand.ptr->card[i].first;
                         new_node.hand.RemoveCard(index);
                         new_node.PlayCard(index);
                         new_node.SortMobs();
@@ -1575,10 +1578,10 @@ void CompareWatcherCards(const Node & top_node) {
 
 // compare the effect of upgrading cards on the given fight
 void CompareUpgrades(const Node & top_node) {
-    std::vector<uint16_t> upgrade_list;
+    std::vector<card_index_t> upgrade_list;
 
     // add base cards to upgrade
-    upgrade_list.push_back(65535);
+    upgrade_list.push_back(-1);
     for (const auto & card : top_node.deck.ptr->card) {
         if (card_map[card.first]->upgraded_version != nullptr) {
             upgrade_list.push_back(card.first);
@@ -1592,7 +1595,7 @@ void CompareUpgrades(const Node & top_node) {
     outFile << top_node.ToString() << std::endl;
     for (auto & index : upgrade_list) {
         Node this_top_node = top_node;
-        if (index != 65535) {
+        if (index != -1) {
             this_top_node.deck.RemoveCard(index);
             this_top_node.deck.AddCard(*card_map[index]->upgraded_version);
         }

@@ -14,6 +14,16 @@
 using std::vector;
 using std::string;
 
+// type to hold card index
+typedef uint8_t card_index_t;
+
+// type to hold the max number of cards
+typedef uint8_t card_count_t;
+
+// card pair
+typedef std::pair<card_index_t, card_count_t> deck_item_t;
+
+
 double factorial(double x) {
     double result = 1;
     while (x > 1) {
@@ -31,9 +41,9 @@ double ncr(double n, double r) {
 // a card collection is a collection of cards
 struct CardCollection {
     // total number of cards
-    uint16_t total;
+    card_count_t total;
     // list of cards and the count of each
-    std::vector<std::pair<uint16_t, uint16_t>> card;
+    std::vector<deck_item_t> card;
     // constructor
     CardCollection() : total(0) {
     }
@@ -52,7 +62,7 @@ struct CardCollection {
         }*/
     }
     // return number of the given card in the pile
-    uint16_t CountCard(uint16_t card_index) const {
+    card_count_t CountCard(card_index_t card_index) const {
         for (auto & this_card : card) {
             if (this_card.first == card_index) {
                 return this_card.second;
@@ -61,7 +71,7 @@ struct CardCollection {
         return 0;
     }
     // return number of cards in pile
-    uint16_t Count() const {
+    card_count_t Count() const {
         return total;
     }
     // return true if pile is empty
@@ -74,9 +84,9 @@ struct CardCollection {
         total = 0;
     }
     // remove a card
-    void RemoveCard(uint16_t index, uint16_t count = 1) {
+    void RemoveCard(card_index_t index, card_count_t count = 1) {
         auto it = std::lower_bound(
-            card.begin(), card.end(), std::pair<uint16_t, uint16_t>(index, 0));
+            card.begin(), card.end(), deck_item_t(index, 0));
         assert(it != card.end());
         assert(it->second >= count);
         if (it->second == count) {
@@ -87,25 +97,25 @@ struct CardCollection {
         total -= count;
     }
     // add a card
-    void AddCard(uint16_t index, uint16_t count = 1) {
+    void AddCard(card_index_t index, card_count_t count = 1) {
         //card.reserve(card.size() + count);
         auto it = std::lower_bound(
-            card.begin(), card.end(), std::pair<uint16_t, uint16_t>(index, 0));
+            card.begin(), card.end(), deck_item_t(index, 0));
         if (it == card.end()) {
-            card.insert(card.end(), std::pair<uint16_t, uint16_t>(index, count));
+            card.insert(card.end(), deck_item_t(index, count));
         } else if (it->first == index) {
             it->second += count;
         } else {
-            card.insert(it, std::pair<uint16_t, uint16_t>(index, count));
+            card.insert(it, deck_item_t(index, count));
         }
         total += count;
     }
     // add a card
-    void AddCard(const Card & c, uint16_t count = 1) {
+    void AddCard(const Card & c, card_count_t count = 1) {
         AddCard(c.GetIndex(), count);
     }
     // add a card by string
-    void AddCard(const char * card_name, uint16_t count = 1) {
+    void AddCard(const char * card_name, card_count_t count = 1) {
         for (std::size_t i = 0; i < card_map.size(); ++i) {
             const Card & card = *card_map[i];
             if (card.name == card_name) {
@@ -124,17 +134,17 @@ struct CardCollection {
     }
     // return all combinations of selecting X cards at random
     // results are returned as (probability, cards_selected, cards_left)
-    std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> Select(uint16_t count) const {
+    std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> Select(card_count_t count) const {
         // get number of results
         std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> result;
-        uint16_t unique_card_count = (uint16_t) card.size();
+        card_count_t unique_card_count = (card_count_t) card.size();
         // get number of cards
-        uint16_t card_count = total;
+        card_count_t card_count = total;
         // find probability of this combination
         double denom = ncr(card_count, count);
         // find denominator for probabilities
         // get number of items we can assign past this
-        std::vector<uint16_t> space_to_right(unique_card_count, 0);
+        std::vector<card_count_t> space_to_right(unique_card_count, 0);
         if (unique_card_count > 0) {
             std::size_t i = (std::size_t) unique_card_count - 1;
             while (i > 0) {
@@ -144,9 +154,9 @@ struct CardCollection {
         }
         assert(card_count >= count);
         // initialize first list
-        std::vector<uint16_t> item(unique_card_count, 0);
-        uint16_t left = count;
-        uint16_t active_index = 0;
+        std::vector<card_count_t> item(unique_card_count, 0);
+        card_count_t left = count;
+        card_index_t active_index = 0;
         while (left > 0) {
             item[active_index] = std::min(left, card[active_index].second);
             left -= item[active_index];
@@ -181,7 +191,7 @@ struct CardCollection {
                 if (active_index == 0) {
                     return result;
                 }
-                uint16_t need_to_place = item[active_index];
+                card_index_t need_to_place = item[active_index];
                 item[active_index] = 0;
                 --active_index;
                 while (true) {
@@ -229,7 +239,6 @@ struct CardCollection {
     string ToString() const {
         std::stringstream ss;
         ss << "{" << total << " cards";
-        uint16_t count = 0;
         const Card * last_card = nullptr;
         bool first_card = true;
         for (auto & i : card) {

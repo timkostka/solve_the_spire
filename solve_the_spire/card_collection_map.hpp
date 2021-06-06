@@ -40,11 +40,11 @@ struct CardCollectionPtr {
     }
     // add a card
     // return number of cards in pile
-    uint16_t Count() const {
+    card_count_t Count() const {
         return ptr->total;
     }
     // return number of the given card in the pile
-    uint16_t CountCard(uint16_t card_index) const {
+    card_count_t CountCard(card_index_t card_index) const {
         return ptr->CountCard(card_index);
     }
     // return true if pile is empty
@@ -52,19 +52,19 @@ struct CardCollectionPtr {
         return Count() == 0;
     }
     // remove a card
-    void RemoveCard(uint16_t index, uint16_t count = 1) {
+    void RemoveCard(card_index_t index, card_count_t count = 1) {
         CardCollection new_deck = *ptr;
         new_deck.RemoveCard(index, count);
         ptr = CardCollectionMap::Find(new_deck);
     }
     // add a card
-    void AddCard(uint16_t index, uint16_t count = 1) {
+    void AddCard(card_index_t index, card_count_t count = 1) {
         CardCollection new_deck = *ptr;
         new_deck.AddCard(index, count);
         ptr = CardCollectionMap::Find(new_deck);
     }
     // add a card
-    void operator+= (const uint16_t index) {
+    void operator+= (const card_index_t index) {
         AddCard(index, 1);
     }
     // add a card
@@ -72,7 +72,7 @@ struct CardCollectionPtr {
         AddCard(c);
     }
     // add a card
-    void AddCard(const Card & c, uint16_t count = 1) {
+    void AddCard(const Card & c, card_count_t count = 1) {
         AddCard(c.GetIndex(), count);
     }
     // add a card collection

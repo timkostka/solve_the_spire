@@ -14,7 +14,7 @@ struct CharacterType {
     // relics
     std::string relics;
     // max hp
-    uint16_t max_hp;
+    uint8_t max_hp;
 };
 
 // map between characters and setup information

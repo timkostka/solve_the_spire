@@ -67,29 +67,44 @@ struct Node {
     // node number (to help with sorting order)
     //std::size_t index;
     // turn number
-    uint16_t turn;
+    uint8_t turn;
     // layer number (for evaluating tree)
     // increase by 1 for each decision that happens so that we can evaluate
     // the lowest layer to keep memory requirements low
-    uint16_t layer;
+    uint8_t layer;
     // max player HP
-    uint16_t max_hp;
+    uint8_t max_hp;
+    // current player HP
+    uint8_t hp;
+    // amount of block
+    uint8_t block;
+    // player energy
+    uint8_t energy;
+    // number of cards left to draw for this turn
+    uint8_t cards_to_draw;
     // stance
     StanceEnum stance;
-    // relic state
-    RelicStruct relics;
-    // orb slots
-    uint8_t orb_slots;
+    // true if new mob intents need generated
+    bool generate_mob_intents;
+    // true if the next move is to play a card or end turn
+    bool player_choice;
+    // true if battle is complete
+    // (battle is complete if all mobs are dead or if player is dead)
+    bool battle_done;
+    // true if tree below this is solved
+    bool tree_solved;
+    // true if last card was an attack
+    bool last_card_attack;
+    // true if last card was a skill
+    bool last_card_skill;
+#ifdef USE_ORBS
     // focus
     uint8_t focus;
-#ifdef USE_ORBS
+    // orb slots
+    uint8_t orb_slots;
     // orbs
     std::vector<OrbStruct> orbs;
 #endif
-    // current player HP
-    uint16_t hp;
-    // amount of block
-    uint16_t block;
     // pointer to deck
     CardCollectionPtr deck;
     // hand
@@ -100,42 +115,27 @@ struct Node {
     CardCollectionPtr discard_pile;
     // exhausted pile
     CardCollectionPtr exhaust_pile;
-    // true if new mob intents need generated
-    bool generate_mob_intents;
-    // monsters (in order of action)
-    Monster monster[MAX_MOBS_PER_NODE];
-    // player energy
-    uint16_t energy;
-    // buffs
-    BuffState buff;
     // link to parent node
     Node * parent;
+    // monsters (in order of action)
+    Monster monster[MAX_MOBS_PER_NODE];
+    // buffs
+    BuffState buff;
+    // relic state
+    RelicStruct relics;
     // list of children
     vector<Node *> child;
-    // true if the next move is to play a card or end turn
-    bool player_choice;
     // probability of getting to this node from the parent
     // (only valid if player_choice of parent is false)
     double probability;
     // decision at parent node in order to get to this node
     // (only valid if player_choice of parent is false)
     Decision parent_decision;
-    // number of cards left to draw for this turn
-    uint16_t cards_to_draw;
-    // true if battle is complete
-    // (battle is complete if all mobs are dead or if player is dead)
-    bool battle_done;
-    // true if tree below this is solved
-    bool tree_solved;
     // maximum possible composite objective
     // (if tree_solved=true, this is the final composite objective)
     double composite_objective;
     // path objective (used to sort optional nodes for evaluating)
     double path_objective;
-    // true if last card was an attack
-    bool last_card_attack;
-    // true if last card was a skill
-    bool last_card_skill;
     // default constructor
     //Node() :
     //    fight_type(kFightAct1EasyCultist),
@@ -311,7 +311,9 @@ struct Node {
         last_card_attack = false;
         last_card_skill = false;
 
+#ifdef USE_ORBS
         focus = 0;
+#endif
         //index = 0;
         layer = 0;
         turn = 0;
@@ -923,7 +925,7 @@ struct Node {
         }
     }
     // play a card
-    void PlayCard(uint16_t index, uint8_t target = 0) {
+    void PlayCard(card_index_t index, uint8_t target = 0) {
         const auto & card = *card_map[index];
         // set up decision information
         parent_decision.type = kDecisionPlayCard;
@@ -1115,17 +1117,23 @@ struct Node {
                 }
                 case kActionAddCardToDrawPile:
                 {
-                    draw_pile.AddCard(action.arg[0], action.arg[1]);
+                    draw_pile.AddCard(
+                        (card_index_t) action.arg[0],
+                        (card_count_t) action.arg[1]);
                     break;
                 }
                 case kActionAddCardToDiscardPile:
                 {
-                    discard_pile.AddCard(action.arg[0], action.arg[1]);
+                    discard_pile.AddCard(
+                        (card_index_t) action.arg[0],
+                        (card_count_t) action.arg[1]);
                     break;
                 }
                 case kActionAddCardToHand:
                 {
-                    hand.AddCard(action.arg[0], action.arg[1]);
+                    hand.AddCard(
+                        (card_index_t) action.arg[0],
+                        (card_count_t) action.arg[1]);
                     break;
                 }
                 case kActionChangeStance:
@@ -1137,11 +1145,11 @@ struct Node {
                         }
                         stance = new_stance;
                         // move Flurry of Blows from discard to hand
-                        uint16_t flurry_plus_index = card_flurry_of_blows.GetIndex();
-                        uint16_t flurry_plus_count =
+                        card_index_t flurry_plus_index = card_flurry_of_blows.GetIndex();
+                        card_count_t flurry_plus_count =
                             discard_pile.CountCard(flurry_plus_index);
                         if (flurry_plus_count > 0 && hand.Count() < MAX_HAND_SIZE) {
-                            uint16_t to_add = flurry_plus_count;
+                            card_count_t to_add = flurry_plus_count;
                             if (hand.Count() + to_add > MAX_HAND_SIZE) {
                                 to_add = MAX_HAND_SIZE - hand.Count();
                             }
@@ -1149,10 +1157,10 @@ struct Node {
                             hand.AddCard(flurry_plus_count, to_add);
                             discard_pile.RemoveCard(flurry_plus_count, to_add);
                         }
-                        uint16_t flurry_index = card_flurry_of_blows.GetIndex();
-                        uint16_t flurry_count = discard_pile.CountCard(flurry_index);
+                        card_index_t flurry_index = card_flurry_of_blows.GetIndex();
+                        card_count_t flurry_count = discard_pile.CountCard(flurry_index);
                         if (flurry_count > 0 && hand.Count() < MAX_HAND_SIZE) {
-                            uint16_t to_add = flurry_count;
+                            card_count_t to_add = flurry_count;
                             if (hand.Count() + to_add > MAX_HAND_SIZE) {
                                 to_add = MAX_HAND_SIZE - hand.Count();
                             }
