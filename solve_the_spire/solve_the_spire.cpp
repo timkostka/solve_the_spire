@@ -147,7 +147,8 @@ struct PathObjectiveSort {
     bool operator() (Node * const first, Node * const second) const {
         return (first->path_objective > second->path_objective) ||
             (first->path_objective == second->path_objective &&
-                first->index < second->index); //first < second);
+                first < second);
+                //first->index < second->index); //first < second);
     }
 };
 
@@ -197,8 +198,8 @@ struct TreeStruct {
     }
     // create a new node and return the pointer
     Node & CreateChild(Node & node, bool add_to_optional) {
-        static std::size_t next_index = 0;
-        ++next_index;
+        //static std::size_t next_index = 0;
+        //++next_index;
         // if deleted node list has items, reuse the last one
         Node * new_node_ptr = nullptr;
         if (!deleted_nodes.empty()) {
@@ -215,7 +216,7 @@ struct TreeStruct {
             ++created_node_count;
         }
         Node & new_node = *new_node_ptr;
-        new_node.index = next_index;
+        //new_node.index = next_index;
         new_node.child.clear();
         new_node.parent = &node;
         ++new_node.layer = node.layer + 1;

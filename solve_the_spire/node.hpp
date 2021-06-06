@@ -65,7 +65,7 @@ struct Node {
     // fight type
     FightEnum fight_type;
     // node number (to help with sorting order)
-    std::size_t index;
+    //std::size_t index;
     // turn number
     uint16_t turn;
     // layer number (for evaluating tree)
@@ -303,7 +303,7 @@ struct Node {
         last_card_skill = false;
 
         focus = 0;
-        index = 0;
+        //index = 0;
         layer = 0;
         turn = 0;
         block = 0;
