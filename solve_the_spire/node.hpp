@@ -670,11 +670,14 @@ struct Node {
             std::string this_indent = hanging_indent;
             std::string this_hanging_indent = hanging_indent;
             if (i == child.size() - 1) {
-                this_indent += "\xc0\xc4"; // "+-";
+                //this_indent += "\xc0\xc4"; // "+-";
+                this_indent += "+-";
                 this_hanging_indent += "  ";
             } else {
-                this_indent += "\xc3\xc4";
-                this_hanging_indent += "\xb3 ";
+                //this_indent += "\xc3\xc4";
+                this_indent += "+-";
+                //this_hanging_indent += "\xb3 ";
+                this_hanging_indent += "| ";
             }
             this_child.PrintTree(collapse, highlight, this_indent, this_hanging_indent);
         }
