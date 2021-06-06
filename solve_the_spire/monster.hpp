@@ -29,6 +29,7 @@ enum MonsterFlag : uint8_t {
     kMonsterFlagElite = 1 << 0,
     kMonsterFlagBoss = 1 << 1,
     kMonsterFlagMinion = 1 << 2,
+    kMonsterFlagTest = 1 << 3,
 };
 
 // a BaseMonster holds information on how to generate a new monster
@@ -132,6 +133,11 @@ struct Monster {
     }
     // returned as a vector of (probability, intent index)
     std::vector<std::pair<double, uint8_t>> GetIntents() {
+        if (base->intent_function == nullptr) {
+            std::vector<std::pair<double, uint8_t>> result;
+            result.push_back(std::pair<double, uint8_t>(1.0, 0));
+            return result;
+        }
         return base->intent_function(*this);
     }
     // select a new intent
@@ -381,4 +387,15 @@ BaseMonster base_mob_gremlin_nob = {
     },
     GetIntentGremlinNob,
     kMonsterFlagElite,
+};
+
+// base model for a test mob with 100hp that always attacks for 10
+BaseMonster base_mob_test_100hp_10hp_attacker = {
+    "Test Mob #1",
+    {100, 100},
+    {
+        {"Attack", {{kActionAttack, 10}}},
+    },
+    nullptr,
+    kMonsterFlagTest,
 };

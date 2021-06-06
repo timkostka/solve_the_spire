@@ -16,8 +16,33 @@ enum BuffType : uint8_t {
     kBuffCurlUp,
     // at end of turn, decrease strength by this amount and zero this value
     kBuffStrengthDown,
+    kBuffRage,
     kBuffFinal,
 };
+
+// list of positive buffs
+const BuffType positive_buffs[] = {
+    kBuffStrength,
+    kBuffDexterity,
+    kBuffRitual,
+    kBuffThorns,
+    kBuffEnrage,
+    kBuffMetallicize,
+    kBuffCurlUp,
+    kBuffRage,
+};
+
+// list of negative buffs
+const BuffType negative_buffs[] = {
+    kBuffWeak,
+    kBuffFrail,
+    kBuffVulnerable,
+    kBuffStrengthDown,
+};
+
+// list of neutral buffs
+//const BuffType ambiguous_buffs[] = {
+//};
 
 //// true if buff is favorable on a player
 //// e.g. strength is good, vulnerability is bad
@@ -55,29 +80,15 @@ struct BuffState {
         if (*this == that) {
             return true;
         }
-        if (value[kBuffStrength] > that.value[kBuffStrength]) {
-            return false;
+        for (const auto & buff : positive_buffs) {
+            if (value[buff] > that.value[buff]) {
+                return false;
+            }
         }
-        if (value[kBuffDexterity] > that.value[kBuffDexterity]) {
-            return false;
-        }
-        if (value[kBuffVulnerable] < that.value[kBuffVulnerable]) {
-            return false;
-        }
-        if (value[kBuffWeak] < that.value[kBuffWeak]) {
-            return false;
-        }
-        if (value[kBuffThorns] > that.value[kBuffThorns]) {
-            return false;
-        }
-        if (value[kBuffMetallicize] > that.value[kBuffMetallicize]) {
-            return false;
-        }
-        if (value[kBuffStrengthDown] < that.value[kBuffStrengthDown]) {
-            return false;
-        }
-        if (value[kBuffCurlUp] > that.value[kBuffCurlUp]) {
-            return false;
+        for (const auto & buff : negative_buffs) {
+            if (value[buff] < that.value[buff]) {
+                return false;
+            }
         }
         return true;
     }
@@ -86,29 +97,15 @@ struct BuffState {
         if (*this == that) {
             return true;
         }
-        if (value[kBuffStrength] < that.value[kBuffStrength]) {
-            return false;
+        for (const auto & buff : positive_buffs) {
+            if (value[buff] < that.value[buff]) {
+                return false;
+            }
         }
-        if (value[kBuffDexterity] < that.value[kBuffDexterity]) {
-            return false;
-        }
-        if (value[kBuffVulnerable] > that.value[kBuffVulnerable]) {
-            return false;
-        }
-        if (value[kBuffWeak] > that.value[kBuffWeak]) {
-            return false;
-        }
-        if (value[kBuffThorns] < that.value[kBuffThorns]) {
-            return false;
-        }
-        if (value[kBuffMetallicize] < that.value[kBuffMetallicize]) {
-            return false;
-        }
-        if (value[kBuffStrengthDown] > that.value[kBuffStrengthDown]) {
-            return false;
-        }
-        if (value[kBuffCurlUp] < that.value[kBuffCurlUp]) {
-            return false;
+        for (const auto & buff : negative_buffs) {
+            if (value[buff] > that.value[buff]) {
+                return false;
+            }
         }
         return true;
     }

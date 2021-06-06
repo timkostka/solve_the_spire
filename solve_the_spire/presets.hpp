@@ -26,4 +26,26 @@ std::map<std::string, CharacterType> character_map = {
 };
 
 // map between deck names and decks
+// (populated within PopulateDecks)
 std::map<std::string, CardCollectionPtr> deck_map;
+
+// map between string and card flags
+std::map<std::string, CardFlagStruct> card_flag_map = {
+    {"attack", {.attack = 1}},
+    {"skill", {.skill = 1}},
+    {"power", {.power = 1}},
+    {"curse", {.curse = 1}},
+    {"status", {.status = 1}},
+
+    {"common", {.common = 1}},
+    {"uncommon", {.uncommon = 1}},
+    {"rare", {.rare = 1}},
+
+    {"upgraded", {.upgraded = 1}},
+
+    {"ironclad", {.ironclad = 1}},
+    {"silent", {.silent = 1}},
+    {"defect", {.defect = 1}},
+    {"watcher", {.watcher = 1}},
+    {"colorless", {.colorless = 1}},
+};

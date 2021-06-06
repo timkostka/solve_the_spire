@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30204.135
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SolveTheSpire", "SolveTheSpire.vcxproj", "{58F892A7-FE97-44BA-BE33-271DC4384C45}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "solve_the_spire", "solve_the_spire.vcxproj", "{58F892A7-FE97-44BA-BE33-271DC4384C45}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_the_spire", "..\test_the_spire\test_the_spire.vcxproj", "{EE692E7F-8544-4D27-802D-80CCB17494C0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,14 @@ Global
 		{58F892A7-FE97-44BA-BE33-271DC4384C45}.Release|x64.Build.0 = Release|x64
 		{58F892A7-FE97-44BA-BE33-271DC4384C45}.Release|x86.ActiveCfg = Release|Win32
 		{58F892A7-FE97-44BA-BE33-271DC4384C45}.Release|x86.Build.0 = Release|Win32
+		{EE692E7F-8544-4D27-802D-80CCB17494C0}.Debug|x64.ActiveCfg = Debug|x64
+		{EE692E7F-8544-4D27-802D-80CCB17494C0}.Debug|x64.Build.0 = Debug|x64
+		{EE692E7F-8544-4D27-802D-80CCB17494C0}.Debug|x86.ActiveCfg = Debug|Win32
+		{EE692E7F-8544-4D27-802D-80CCB17494C0}.Debug|x86.Build.0 = Debug|Win32
+		{EE692E7F-8544-4D27-802D-80CCB17494C0}.Release|x64.ActiveCfg = Release|x64
+		{EE692E7F-8544-4D27-802D-80CCB17494C0}.Release|x64.Build.0 = Release|x64
+		{EE692E7F-8544-4D27-802D-80CCB17494C0}.Release|x86.ActiveCfg = Release|Win32
+		{EE692E7F-8544-4D27-802D-80CCB17494C0}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

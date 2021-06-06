@@ -10,6 +10,7 @@
 #include "defines.h"
 #include "presets.hpp"
 #include "card_collection.hpp"
+#include "cards.hpp"
 #include "node.hpp"
 #include "fight.hpp"
 #include "stopwatch.hpp"
@@ -33,9 +34,6 @@
 //    uint32_t terminal_node_count;
 //    // 
 //};
-
-// set of all current card collections
-std::set<CardCollection> CardCollectionMap::collection;
 
 struct MobLayout {
     // probability
@@ -172,29 +170,6 @@ struct TreeStruct {
     // list of terminal nodes
     // (a terminal node is a node where the battle is over)
     std::set<Node *> terminal_nodes;
-    // print stats of current optional node tree
-    void PrintOptionalNodeProgress() {
-        std::map<unsigned int, unsigned int> unsolved_count;
-        for (auto & this_node_ptr : optional_nodes) {
-            auto x = this_node_ptr->turn;
-            auto it = unsolved_count.find(x);
-            if (it == unsolved_count.end()) {
-                unsolved_count[x] = 1;
-            } else {
-                ++(it->second);
-            }
-        }
-        bool first = true;
-        for (const auto & item : unsolved_count) {
-            if (!first) {
-                std::cout << ", ";
-            } else {
-                first = false;
-            }
-            std::cout << item.first << ":" << item.second;
-        }
-        std::cout << std::endl;
-    }
     // constructor
     TreeStruct(Node & node) : top_node_ptr(&node) {
         expanded_node_count = 0;
@@ -814,12 +789,16 @@ struct TreeStruct {
         std::map<uint16_t, double> turn;
         double expected_turn_count = 0.0;
         double death_chance = 0.0;
+        double no_loss_chance = 0.0;
         double remaining_mob_hp = 0.0;
         for (auto & node_ptr : terminal_nodes) {
             if (node_ptr->hp != node_ptr->composite_objective) {
                 printf("ERROR\n");
             }
             auto & p = node_ptr->probability;
+            if (node_ptr->hp >= top_node_ptr->hp) {
+                no_loss_chance += p;
+            }
             if (node_ptr->hp == 0) {
                 death_chance += p;
                 for (auto & mob : node_ptr->monster) {
@@ -905,10 +884,13 @@ struct TreeStruct {
         //    expected_hp_delta, hp_delta.begin()->first, hp_delta.rbegin()->first);
         printf("- Expected fight length is %.3g turns (min %u, max %u)\n",
             expected_turn_count, turn.begin()->first, turn.rbegin()->first);
-        if (death_chance != 0) {
+        if (death_chance > 0.0) {
             remaining_mob_hp /= death_chance;
-            printf("- Expected chance to die is %.3g%% (%.2f remaining mob HP)\n",
+            printf("- Chance to die is %.3g%% (%.2f remaining mob HP)\n",
                 death_chance * 100, remaining_mob_hp);
+        }
+        if (no_loss_chance > 0.0) {
+            printf("- Chance to lose no life is %.3g%%\n", no_loss_chance);
         }
         printf("\nCards stats:\n");
         std::size_t max_card_name_length = 0;
@@ -1239,7 +1221,6 @@ struct TreeStruct {
                     ToString(created_node_count + reused_node_count) <<
                     ", stored=" << ToString(tree_nodes);
                 printf(", ~%.3g%% complete\n", p * 100);
-                //PrintOptionalNodeProgress();
                 next_update =
                     clock() + (std::clock_t) (update_duration * CLOCKS_PER_SEC);
                 update_duration *= 2;
@@ -1303,13 +1284,12 @@ struct TreeStruct {
         }
         // tree should now be solved
         const double duration = (double) (clock() - start_clock) / CLOCKS_PER_SEC;
-        std::cout << "Printing solved tree to tree.txt\n";
         std::cout << "Solution took " << duration << " seconds\n";
-        //std::cout << "Deck map contains " <<
-        //    CardCollectionMap::collection.size() << " decks\n";
         PrintTreeStats();
         // print solved tree to file
-        {
+        if (print_completed_tree_to_file &&
+                top_node_ptr->CountNodes() <= max_nodes_to_print) {
+            std::cout << "Printing solved tree to tree.txt\n";
             std::ofstream outFile("tree.txt");
             std::streambuf * oldCoutStreamBuf = std::cout.rdbuf();
             std::cout.rdbuf(outFile.rdbuf());
@@ -1405,7 +1385,7 @@ void CompareRelics(const Node & top_node) {
 }
 
 // compare the effect on addings cards on the given fight
-void CompareCards(const Node & top_node) {
+void CompareIroncladCards(const Node & top_node) {
     std::vector<const Card *> card_list;
     // add base case
     card_list.push_back(nullptr);
@@ -1421,6 +1401,62 @@ void CompareCards(const Node & top_node) {
     card_list.push_back(&card_thunderclap);
     card_list.push_back(&card_twin_strike);
     card_list.push_back(&card_wild_strike);
+
+    std::ofstream outFile("card_comparison.txt");
+    std::streambuf * oldCoutStreamBuf = std::cout.rdbuf();
+    bool base = true;
+    double base_objective = 0;
+    outFile << top_node.ToString() << std::endl;
+    for (auto & this_card_ptr : card_list) {
+        Node this_top_node = top_node;
+        if (this_card_ptr != nullptr) {
+            this_top_node.deck.AddCard(*this_card_ptr);
+        }
+        this_top_node.InitializeStartingNode();
+        TreeStruct tree(this_top_node);
+        tree.Expand();
+        if (this_card_ptr == nullptr) {
+            outFile << "base: " << this_top_node.composite_objective << std::endl;
+            base_objective = this_top_node.composite_objective;
+            base = false;
+        } else {
+            outFile << this_card_ptr->name << ": " << this_top_node.composite_objective;
+            outFile << " (";
+            double delta = this_top_node.composite_objective - base_objective;
+            if (delta > 0) {
+                outFile << "+";
+            }
+            outFile << delta << ")";
+            outFile << std::endl;
+        }
+    }
+    outFile.close();
+}
+
+// compare the effect on addings cards with the given flags on the given fight
+void CompareCards(
+        const Node & top_node,
+        const CardFlagStruct card_flag,
+        const CardFlagStruct bad_flag) {
+    std::vector<const Card *> card_list;
+    // add base case
+    card_list.push_back(nullptr);
+
+    // add cards
+    card_list.push_back(&card_anger);
+    card_list.push_back(&card_cleave);
+    card_list.push_back(&card_clothesline);
+    //card_list.push_back(&card_flex);
+    card_list.push_back(&card_iron_wave);
+    card_list.push_back(&card_perfected_strike);
+    card_list.push_back(&card_sword_boomerang);
+    card_list.push_back(&card_thunderclap);
+    card_list.push_back(&card_twin_strike);
+    card_list.push_back(&card_wild_strike);
+    card_list.push_back(&card_bludgeon);
+    card_list.push_back(&card_whirlwind);
+    card_list.push_back(&card_uppercut);
+    card_list.push_back(&card_shockwave);
 
     std::ofstream outFile("card_comparison.txt");
     std::streambuf * oldCoutStreamBuf = std::cout.rdbuf();
@@ -1512,7 +1548,7 @@ void CompareUpgrades(const Node & top_node) {
 
     // add base cards to upgrade
     upgrade_list.push_back(65535);
-    for (auto card : top_node.deck.ptr->card) {
+    for (const auto & card : top_node.deck.ptr->card) {
         if (card_map[card.first]->upgraded_version != nullptr) {
             upgrade_list.push_back(card.first);
         }
@@ -1549,6 +1585,91 @@ void CompareUpgrades(const Node & top_node) {
         }
     }
     outFile.close();
+}
+
+// add cards to card index
+// (this function is auto-populated using the populate_cards.py script
+void PopulateCards() {
+    card_wound.GetIndex();
+    card_strike_plus.GetIndex();
+    card_strike.GetIndex();
+    card_defend_plus.GetIndex();
+    card_defend.GetIndex();
+    card_bash_plus.GetIndex();
+    card_bash.GetIndex();
+    card_anger_plus.GetIndex();
+    card_anger.GetIndex();
+    card_cleave_plus.GetIndex();
+    card_cleave.GetIndex();
+    card_clothesline_plus.GetIndex();
+    card_clothesline.GetIndex();
+    card_flex_plus.GetIndex();
+    card_flex.GetIndex();
+    card_heavy_blade_plus.GetIndex();
+    card_heavy_blade.GetIndex();
+    card_iron_wave_plus.GetIndex();
+    card_iron_wave.GetIndex();
+    card_perfected_strike_plus.GetIndex();
+    card_perfected_strike.GetIndex();
+    card_sword_boomerang_plus.GetIndex();
+    card_sword_boomerang.GetIndex();
+    card_thunderclap_plus.GetIndex();
+    card_thunderclap.GetIndex();
+    card_twin_strike_plus.GetIndex();
+    card_twin_strike.GetIndex();
+    card_wild_strike_plus.GetIndex();
+    card_wild_strike.GetIndex();
+    card_carnage_plus.GetIndex();
+    card_carnage.GetIndex();
+    card_inflame_plus.GetIndex();
+    card_inflame.GetIndex();
+    card_ascenders_bane.GetIndex();
+    card_neutralize_plus.GetIndex();
+    card_neutralize.GetIndex();
+    card_survivor_plus.GetIndex();
+    card_survivor.GetIndex();
+    card_zap_plus.GetIndex();
+    card_zap.GetIndex();
+    card_dualcast_plus.GetIndex();
+    card_dualcast.GetIndex();
+    card_eruption_plus.GetIndex();
+    card_eruption.GetIndex();
+    card_vigilance_plus.GetIndex();
+    card_vigilance.GetIndex();
+    card_miracle_plus.GetIndex();
+    card_miracle.GetIndex();
+    card_bowling_bash_plus.GetIndex();
+    card_bowling_bash.GetIndex();
+    card_consecrate_plus.GetIndex();
+    card_consecrate.GetIndex();
+    card_crescendo_plus.GetIndex();
+    card_crescendo.GetIndex();
+    card_crush_joints_plus.GetIndex();
+    card_crush_joints.GetIndex();
+    card_empty_body_plus.GetIndex();
+    card_empty_body.GetIndex();
+    card_empty_fist_plus.GetIndex();
+    card_empty_fist.GetIndex();
+    card_flurry_of_blows_plus.GetIndex();
+    card_flurry_of_blows.GetIndex();
+    card_flying_sleeves_plus.GetIndex();
+    card_flying_sleeves.GetIndex();
+    card_follow_up_plus.GetIndex();
+    card_follow_up.GetIndex();
+    card_halt_plus.GetIndex();
+    card_halt.GetIndex();
+    card_just_lucky_plus.GetIndex();
+    card_just_lucky.GetIndex();
+    card_prostrate_plus.GetIndex();
+    card_prostrate.GetIndex();
+    card_protect_plus.GetIndex();
+    card_protect.GetIndex();
+    card_sash_whip_plus.GetIndex();
+    card_sash_whip.GetIndex();
+    card_third_eye_plus.GetIndex();
+    card_third_eye.GetIndex();
+    card_tranquility_plus.GetIndex();
+    card_tranquility.GetIndex();
 }
 
 // populate deck maps
@@ -1706,6 +1827,8 @@ bool ProcessArgument(Node & node, std::string original_argument) {
 // entry point
 int main(int argc, char ** argv) {
 
+    PopulateCards();
+    
     PopulateDecks();
 
     // starting node
@@ -1725,19 +1848,24 @@ int main(int argc, char ** argv) {
             }
         }
     } else {
-        //ProcessArgument(start_node, "--character=ironclad");
+        ProcessArgument(start_node, "--character=ironclad");
         //ProcessArgument(start_node, "--character=silent");
         //ProcessArgument(start_node, "--character=defect");
-        ProcessArgument(start_node, "--character=watcher");
+        //ProcessArgument(start_node, "--character=watcher");
+        //start_node.deck.AddCard(card_immolate);
+        //start_node.deck.AddCard(card_ghostly_armor);
+        //start_node.deck.AddCard(card_impervious);
+        //start_node.deck.AddCard(card_pummel);
+
         //start_node.deck.AddCard(card_crush_joints);
-        //start_node.deck.RemoveCard(card_ascenders_bane.GetIndex());
+        start_node.deck.RemoveCard(card_ascenders_bane.GetIndex());
         //start_node.deck.RemoveCard(card_vigilance.GetIndex());
 
         start_node.hp = start_node.max_hp * 9 / 10;
-        //start_node.fight_type = kFightAct1EasyCultist;
+        start_node.fight_type = kFightAct1EasyCultist;
         //start_node.fight_type = kFightAct1EasyJawWorm;
         //start_node.fight_type = kFightAct1EasyLouses;
-        start_node.fight_type = kFightAct1EliteGremlinNob;
+        //start_node.fight_type = kFightAct1EliteGremlinNob;
         //start_node.fight_type = kFightAct1EliteLagavulin;
         //start_node.fight_type = kFightTestOneLouse;
     }
@@ -1749,13 +1877,14 @@ int main(int argc, char ** argv) {
 
     start_node.InitializeStartingNode();
 
-    //TreeStruct tree(start_node);
-    //tree.Expand();
+    TreeStruct tree(start_node);
+    tree.Expand();
 
-    CompareUpgrades(start_node);
+    //CompareUpgrades(start_node);
 
     //CompareRelics(start_node);
 
+    //CompareCards(start_node, {0}, {0});
     //CompareWatcherCards(start_node);
 
     exit(0);

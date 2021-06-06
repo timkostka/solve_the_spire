@@ -1,6 +1,6 @@
 #pragma once
 
-#include "card.hpp"
+#include "cards.hpp"
 
 #include <cmath>
 #include <utility>

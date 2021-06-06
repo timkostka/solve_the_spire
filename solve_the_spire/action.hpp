@@ -29,7 +29,11 @@ enum ActionType : uint8_t {
     kActionAttackBowlingBash,
     // attack all enemies
     // first argument is attack amount
+    // second argumetn is number of attacks
     kActionAttackAll,
+    // attack all enemies for the number of energy we have times
+    // first argument is attack amount
+    kActionAttackAllWhirlwind,
     // apply block
     // first argument is block amount
     kActionBlock,
@@ -45,12 +49,21 @@ enum ActionType : uint8_t {
     // first argument is buff type
     // second argument is buff amount
     kActionDebuffAll,
+    // lose HP
+    // first argument is amount to lose
+    kActionLoseHP,
     // add a card to the draw pile
     // first argument is card index
+    // second argument is number of cards to add
     kActionAddCardToDrawPile,
     // add a card to the exhaust pile
     // first argument is card index
+    // second argument is number of cards to add
     kActionAddCardToDiscardPile,
+    // add a card to your hand
+    // first argument is card index
+    // second argument is number of cards to add
+    kActionAddCardToHand,
     // draw cards
     // first argument is how many cards to draw
     kActionDrawCards,
@@ -79,6 +92,11 @@ enum ActionType : uint8_t {
     kActionGainMantra,
     // if in wrath stance, do the next action (else skip it)
     kActionInWrath,
+    // heal
+    // first argument is amount to heal
+    kActionHeal,
+    // attack for the current amount of block
+    kActionAttackBodySlam,
 };
 
 // An action is a single event caused by a card such as damage, or a buff

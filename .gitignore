@@ -1,0 +1,8 @@
+**/venv
+
+**/Release
+**/Debug
+
+**/.vs
+
+solve_the_spire/packages

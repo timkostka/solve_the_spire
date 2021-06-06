@@ -2,7 +2,8 @@
 
 #include <set>
 
-#include "card.hpp"
+#include "defines.h"
+#include "cards.hpp"
 #include "card_collection.hpp"
 
 struct CardCollectionMap {
@@ -93,3 +94,6 @@ struct CardCollectionPtr {
         return ptr->ToString();
     }
 };
+
+// set of all current card collections
+std::set<CardCollection> CardCollectionMap::collection;

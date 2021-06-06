@@ -13,7 +13,7 @@
 #include "defines.h"
 #include "card_collection.hpp"
 #include "card_collection_map.hpp"
-#include "card.hpp"
+#include "cards.hpp"
 #include "buff_state.hpp"
 #include "monster.hpp"
 #include "relics.hpp"
@@ -247,6 +247,7 @@ struct Node {
     // return best possible ultimate objective function for a child of this node
     // (it's okay to overestimate, but not ideal)
     double GetMaxFinalObjective() const {
+        // TODO: factor in Bandage Up
         if (IsBattleDone()) {
             return hp;
         }
@@ -742,6 +743,21 @@ struct Node {
                 --i;
             }
         }
+        // take burn damage and discard burns
+        {
+            uint16_t count = hand.CountCard(card_burn.GetIndex());
+            for (int i = 0; i < count; ++i) {
+                TakeDamage(2);
+                discard_pile.AddCard(card_burn.GetIndex());
+                hand.RemoveCard(card_burn.GetIndex());
+            }
+        }
+        for (auto & item : hand.ptr->card) {
+            const Card & card = *card_map[item.first];
+            if (&card == &card_burn) {
+
+            }
+        }
         // discard all remaining cards except those we retain
         if (relics.runic_pyramid == 0) {
             CardCollectionPtr new_hand;
@@ -759,6 +775,9 @@ struct Node {
         }
         if (relics.orichalcum && block == 0) {
             block = 6;
+        }
+        if (buff[kBuffMetallicize]) {
+            block += buff[kBuffMetallicize];
         }
         // remove block on mobs
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
@@ -902,7 +921,11 @@ struct Node {
         }
         // pay for it
         assert(energy >= card.cost);
-        energy -= card.cost;
+        uint16_t card_energy = card.cost;
+        if (card.flag.x_cost) {
+            card_energy = energy;
+        }
+        energy -= card_energy;
         auto & mob = monster[target];
         if (card.flag.targeted) {
             assert(mob.Exists());
@@ -917,10 +940,14 @@ struct Node {
                 case kActionAttackPerfectedStrike:
                 case kActionAttackHeavyBlade:
                 case kActionAttackBowlingBash:
+                case kActionAttackBodySlam:
                 case kActionAttack:
                 {
                     uint16_t amount = 0;
                     uint16_t count = 0;
+                    if (buff[kBuffRage] > 0) {
+                        block += buff[kBuffRage];
+                    }
                     if (action.type == kActionAttack) {
                         amount = action.arg[0];
                         count = action.arg[1];
@@ -929,6 +956,9 @@ struct Node {
                         count = 1;
                     } else if (action.type == kActionAttackHeavyBlade) {
                         amount = action.arg[0];
+                        count = 1;
+                    } else if (action.type == kActionAttackBodySlam) {
+                        amount = block;
                         count = 1;
                     } else if (action.type == kActionAttackBowlingBash) {
                         amount = action.arg[0];
@@ -981,9 +1011,21 @@ struct Node {
                     break;
                 }
                 case kActionAttackAll:
+                case kActionAttackAllWhirlwind:
                 {
+                    uint16_t amount = 0;
+                    uint16_t count = 0;
+                    if (buff[kBuffRage] > 0) {
+                        block += buff[kBuffRage];
+                    }
                     assert(!card.flag.targeted);
-                    uint16_t amount = action.arg[0];
+                    if (action.type == kActionAttackAll) {
+                        amount = action.arg[0];
+                        count = action.arg[1];
+                    } else if (action.type == kActionAttackAllWhirlwind) {
+                        amount = action.arg[0];
+                        count = card_energy;
+                    }
                     amount += buff[kBuffStrength];
                     if (relics.akabeko_active) {
                         relics.akabeko_active = 0;
@@ -995,7 +1037,7 @@ struct Node {
                     if (buff[kBuffWeak]) {
                         amount = amount * 3 / 4;
                     }
-                    for (int16_t i = 0; i < action.arg[1]; ++i) {
+                    for (int16_t i = 0; i < count; ++i) {
                         for (int16_t m = 0; m < MAX_MOBS_PER_NODE; ++m) {
                             auto & this_mob = monster[m];
                             if (this_mob.Exists()) {
@@ -1045,14 +1087,27 @@ struct Node {
                     }
                     break;
                 }
+                case kActionLoseHP:
+                {
+                    TakeHPLoss(action.arg[0]);
+                    if (hp == 0) {
+                        return;
+                    }
+                    break;
+                }
                 case kActionAddCardToDrawPile:
                 {
-                    draw_pile.AddCard(action.arg[0]);
+                    draw_pile.AddCard(action.arg[0], action.arg[1]);
                     break;
                 }
                 case kActionAddCardToDiscardPile:
                 {
-                    discard_pile.AddCard(action.arg[0]);
+                    discard_pile.AddCard(action.arg[0], action.arg[1]);
+                    break;
+                }
+                case kActionAddCardToHand:
+                {
+                    hand.AddCard(action.arg[0], action.arg[1]);
                     break;
                 }
                 case kActionChangeStance:
@@ -1126,6 +1181,11 @@ struct Node {
                     if (stance != kStanceWrath) {
                         ++i;
                     }
+                    break;
+                }
+                case kActionHeal:
+                {
+                    Heal(action.arg[0]);
                     break;
                 }
                 case kActionLastCardAttack:

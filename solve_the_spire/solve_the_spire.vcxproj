@@ -22,8 +22,9 @@
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{58f892a7-fe97-44ba-be33-271dc4384c45}</ProjectGuid>
-    <RootNamespace>SolveTheSpire</RootNamespace>
+    <RootNamespace>solve_the_spire</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>solve_the_spire</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -143,12 +144,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="SolveTheSpire.cpp" />
+    <ClCompile Include="solve_the_spire.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="action.hpp" />
     <ClInclude Include="buff_state.hpp" />
-    <ClInclude Include="card.hpp" />
+    <ClInclude Include="cards.hpp" />
+    <ClInclude Include="cards_colorless.hpp" />
+    <ClInclude Include="cards_status.hpp" />
+    <ClInclude Include="cards_ironclad.hpp" />
     <ClInclude Include="card_collection.hpp" />
     <ClInclude Include="card_collection_map.hpp" />
     <ClInclude Include="defines.h" />
