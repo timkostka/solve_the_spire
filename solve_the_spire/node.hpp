@@ -60,14 +60,14 @@ struct Decision {
 
 // A Node contains all information about a game node.
 struct Node {
+    // set to true at tree start if we have cards where the last skill played matters
     static bool last_card_skill_matters;
+    // set to true at tree start if we have cards where the last attack played matters
     static bool last_card_attack_matters;
-    // fight type
-    //FightEnum fight_type;
-    // node number (to help with sorting order)
-    //std::size_t index;
     // turn number
     uint8_t turn;
+    // player energy
+    uint8_t energy;
     // layer number (for evaluating tree)
     // increase by 1 for each decision that happens so that we can evaluate
     // the lowest layer to keep memory requirements low
@@ -78,16 +78,8 @@ struct Node {
     uint8_t hp;
     // amount of block
     uint8_t block;
-    // player energy
-    uint8_t energy;
-    // number of cards left to draw for this turn
-    //uint8_t cards_to_draw;
     // stance
     StanceEnum stance;
-    // true if new mob intents need generated
-    //bool generate_mob_intents;
-    // true if the next move is to play a card or end turn
-    //bool player_choice;
     // true if battle is complete
     // (battle is complete if all mobs are dead or if player is dead)
     bool battle_done;
@@ -300,9 +292,7 @@ struct Node {
         assert(hp > 0);
         assert(max_hp >= hp);
         assert(!deck.IsEmpty());
-
         // TODO: populate last_card_attack/skill_matters based on cards in deck
-
         stance = kStanceNone;
         discard_pile.Clear();
         hand.Clear();
@@ -312,7 +302,6 @@ struct Node {
         draw_pile = deck;
         last_card_attack = false;
         last_card_skill = false;
-
 #ifdef USE_ORBS
         focus = 0;
 #endif
@@ -768,7 +757,7 @@ struct Node {
     // (simulate end of turn and mob actions)
     void EndTurn() {
         // set tree information
-        //player_choice = false;
+            //player_choice = false;
         parent_decision.type = kDecisionEndTurn;
         // process orbs
 #ifdef USE_ORBS
@@ -1268,6 +1257,18 @@ struct Node {
                     }
                     break;
                 }
+                case kActionDrawCards:
+                {
+                    assert(pending_action[MAX_PENDING_ACTIONS - 1].type == kActionNone);
+                    for (auto & this_action : pending_action) {
+                        if (this_action.type == kActionNone) {
+                            this_action = action;
+                            break;
+                        }
+                    }
+                    // TODO: prevent these nodes from being expanded
+                    break;
+                }
                 default:
                 {
                     printf("ERROR: unexpected action type\n");
@@ -1291,6 +1292,9 @@ struct Node {
             if (pending_action[i].arg[0] != that.pending_action[i].arg[0]) {
                 return false;
             }
+        }
+        if (turn != that.turn) {
+            return false;
         }
         if (last_card_attack_matters &&
                 last_card_attack != that.last_card_attack) {

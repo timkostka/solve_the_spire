@@ -421,6 +421,10 @@ struct TreeStruct {
     }
     // find player choice nodes
     void FindPlayerChoices(Node & top_node) {
+        // TODO
+        // prevent nodes which end up needing to draw more cards via playing Pommel Strike
+        // from being expanded further
+
         //top_node.player_choice = true;
         // nodes we must make a decision at
         std::vector<Node *> decision_nodes;
@@ -483,7 +487,7 @@ struct TreeStruct {
                                 new_node.discard_pile.AddCard(index);
                             }
                             // add new decision point
-                            if (new_node.IsBattleDone()) {
+                            if (new_node.IsBattleDone() || new_node.HasPendingActions()) {
                                 ending_node.push_back(&new_node);
                             } else {
                                 new_decision_nodes.push_back(&new_node);
@@ -1652,91 +1656,6 @@ void CompareUpgrades(const Node & top_node) {
     outFile.close();
 }
 
-// add cards to card index
-// (this function is auto-populated using the populate_cards.py script
-void PopulateCards() {
-    card_wound.GetIndex();
-    card_strike_plus.GetIndex();
-    card_strike.GetIndex();
-    card_defend_plus.GetIndex();
-    card_defend.GetIndex();
-    card_bash_plus.GetIndex();
-    card_bash.GetIndex();
-    card_anger_plus.GetIndex();
-    card_anger.GetIndex();
-    card_cleave_plus.GetIndex();
-    card_cleave.GetIndex();
-    card_clothesline_plus.GetIndex();
-    card_clothesline.GetIndex();
-    card_flex_plus.GetIndex();
-    card_flex.GetIndex();
-    card_heavy_blade_plus.GetIndex();
-    card_heavy_blade.GetIndex();
-    card_iron_wave_plus.GetIndex();
-    card_iron_wave.GetIndex();
-    card_perfected_strike_plus.GetIndex();
-    card_perfected_strike.GetIndex();
-    card_sword_boomerang_plus.GetIndex();
-    card_sword_boomerang.GetIndex();
-    card_thunderclap_plus.GetIndex();
-    card_thunderclap.GetIndex();
-    card_twin_strike_plus.GetIndex();
-    card_twin_strike.GetIndex();
-    card_wild_strike_plus.GetIndex();
-    card_wild_strike.GetIndex();
-    card_carnage_plus.GetIndex();
-    card_carnage.GetIndex();
-    card_inflame_plus.GetIndex();
-    card_inflame.GetIndex();
-    card_ascenders_bane.GetIndex();
-    card_neutralize_plus.GetIndex();
-    card_neutralize.GetIndex();
-    card_survivor_plus.GetIndex();
-    card_survivor.GetIndex();
-    card_zap_plus.GetIndex();
-    card_zap.GetIndex();
-    card_dualcast_plus.GetIndex();
-    card_dualcast.GetIndex();
-    card_eruption_plus.GetIndex();
-    card_eruption.GetIndex();
-    card_vigilance_plus.GetIndex();
-    card_vigilance.GetIndex();
-    card_miracle_plus.GetIndex();
-    card_miracle.GetIndex();
-    card_bowling_bash_plus.GetIndex();
-    card_bowling_bash.GetIndex();
-    card_consecrate_plus.GetIndex();
-    card_consecrate.GetIndex();
-    card_crescendo_plus.GetIndex();
-    card_crescendo.GetIndex();
-    card_crush_joints_plus.GetIndex();
-    card_crush_joints.GetIndex();
-    card_empty_body_plus.GetIndex();
-    card_empty_body.GetIndex();
-    card_empty_fist_plus.GetIndex();
-    card_empty_fist.GetIndex();
-    card_flurry_of_blows_plus.GetIndex();
-    card_flurry_of_blows.GetIndex();
-    card_flying_sleeves_plus.GetIndex();
-    card_flying_sleeves.GetIndex();
-    card_follow_up_plus.GetIndex();
-    card_follow_up.GetIndex();
-    card_halt_plus.GetIndex();
-    card_halt.GetIndex();
-    card_just_lucky_plus.GetIndex();
-    card_just_lucky.GetIndex();
-    card_prostrate_plus.GetIndex();
-    card_prostrate.GetIndex();
-    card_protect_plus.GetIndex();
-    card_protect.GetIndex();
-    card_sash_whip_plus.GetIndex();
-    card_sash_whip.GetIndex();
-    card_third_eye_plus.GetIndex();
-    card_third_eye.GetIndex();
-    card_tranquility_plus.GetIndex();
-    card_tranquility.GetIndex();
-}
-
 // populate deck maps
 void PopulateDecks() {
 
@@ -1895,8 +1814,6 @@ bool ProcessArgument(TreeStruct & tree, std::string original_argument) {
 // entry point
 int main(int argc, char ** argv) {
 
-    PopulateCards();
-    
     PopulateDecks();
 
     // starting node
@@ -1919,6 +1836,7 @@ int main(int argc, char ** argv) {
         }
     } else {
         ProcessArgument(tree, "--character=ironclad");
+        ProcessArgument(tree, "--fight=gremlin_nob");
         //ProcessArgument(start_node, "--character=silent");
         //ProcessArgument(start_node, "--character=defect");
         //ProcessArgument(start_node, "--character=watcher");
@@ -1927,15 +1845,18 @@ int main(int argc, char ** argv) {
         //start_node.deck.AddCard(card_impervious);
         //start_node.deck.AddCard(card_pummel);
         //start_node.deck.AddCard(card_crush_joints);
+        //start_node.deck.RemoveCard(card_strike.GetIndex(), 5);
+        //start_node.deck.AddCard(card_pommel_strike);
+        start_node.deck.AddCard(card_strike_plus);
 
         //start_node.deck.RemoveCard(card_ascenders_bane.GetIndex());
         //start_node.deck.RemoveCard(card_vigilance.GetIndex());
 
         start_node.hp = start_node.max_hp * 9 / 10;
+        tree.fight_type = kFightAct1EliteGremlinNob;
         //tree.fight_type = kFightAct1EasyCultist;
         //tree.fight_type = kFightAct1EasyJawWorm;
         //tree.fight_type = kFightAct1EasyLouses;
-        tree.fight_type = kFightAct1EliteGremlinNob;
         //tree.fight_type = kFightAct1EliteLagavulin;
         //tree.fight_type = kFightTestOneLouse;
     }
@@ -1966,7 +1887,7 @@ int main(int argc, char ** argv) {
 
     //CompareRelics(start_node);
 
-    //CompareCards(start_node, {0}, {0});
+    CompareCards(start_node, {0}, {0});
     //CompareWatcherCards(start_node);
 
     exit(0);

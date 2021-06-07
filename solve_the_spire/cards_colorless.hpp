@@ -8,17 +8,17 @@
 const Card card_bandage_up = {
     "Bandage Up", 0, 0, nullptr,
     {.skill = 1, .exhausts = 1, .uncommon = 1, .colorless = 1},
-    {{kActionHeal, 4}, kActionNone}};
+    {{kActionHeal, 4}, {kActionNone}}};
 
 const Card card_blind = {
     "Blind", 0, 0, nullptr,
     {.skill = 1, .uncommon = 1, .colorless = 1},
-    {{kActionDebuff, kBuffWeak, 2}, kActionNone}};
+    {{kActionDebuff, kBuffWeak, 2}, {kActionNone}}};
 
 const Card card_dark_shackles = {
     "Dark Shackles", 0, 0, nullptr,
     {.skill = 1, .uncommon = 1, .colorless = 1},
-    {{kActionDebuff, kBuffStrength, -9}, {kActionDebuff, kBuffStrengthDown, -9}, kActionNone}};
+    {{kActionDebuff, kBuffStrength, -9}, {kActionDebuff, kBuffStrengthDown, -9}, {kActionNone}}};
 
 // deep breath
 
