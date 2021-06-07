@@ -81,13 +81,13 @@ struct Node {
     // player energy
     uint8_t energy;
     // number of cards left to draw for this turn
-    uint8_t cards_to_draw;
+    //uint8_t cards_to_draw;
     // stance
     StanceEnum stance;
     // true if new mob intents need generated
-    bool generate_mob_intents;
+    //bool generate_mob_intents;
     // true if the next move is to play a card or end turn
-    bool player_choice;
+    //bool player_choice;
     // true if battle is complete
     // (battle is complete if all mobs are dead or if player is dead)
     bool battle_done;
@@ -119,6 +119,8 @@ struct Node {
     Node * parent;
     // monsters (in order of action)
     Monster monster[MAX_MOBS_PER_NODE];
+    // pre-actions
+    Action pending_action[MAX_PENDING_ACTIONS];
     // buffs
     BuffState buff;
     // relic state
@@ -314,21 +316,38 @@ struct Node {
 #ifdef USE_ORBS
         focus = 0;
 #endif
+        for (auto & action : pending_action) {
+            action.type = kActionNone;
+        }
+        pending_action[0].type = kActionGenerateBattle;
         //index = 0;
         layer = 0;
         turn = 0;
         block = 0;
         probability = 1.0;
         energy = 0;
-        cards_to_draw = 0;
-        generate_mob_intents = true;
-        player_choice = false;
+        //cards_to_draw = 0;
+        //generate_mob_intents = true;
+        //player_choice = false;
         parent = nullptr;
         buff.Reset();
         tree_solved = false;
         battle_done = false;
         composite_objective = GetMaxFinalObjective();
         path_objective = GetPathObjective();
+    }
+    // pop the first pending action
+    void PopPendingAction() {
+        for (std::size_t i = 1; i < MAX_PENDING_ACTIONS; ++i) {
+            pending_action[i - 1] = pending_action[i];
+        }
+        pending_action[MAX_PENDING_ACTIONS - 1].type = kActionNone;
+        pending_action[MAX_PENDING_ACTIONS - 1].arg[0] = 0;
+        pending_action[MAX_PENDING_ACTIONS - 1].arg[1] = 0;
+    }
+    // return true if node has pending actions
+    bool HasPendingActions() const {
+        return pending_action[0].type != kActionNone;
     }
     // return total number of nodes including this one and below it
     std::size_t CountNodes() {
@@ -402,7 +421,7 @@ struct Node {
             return child[0]->composite_objective;
         }
         // if children and players choice, return max
-        if (player_choice) {
+        if (!HasPendingActions()) {
             double max_objective = child[0]->composite_objective;
             for (std::size_t i = 1; i < child.size(); ++i) {
                 if (child[i]->composite_objective > max_objective) {
@@ -491,7 +510,7 @@ struct Node {
         assert(turn == 0);
         turn = 1;
         ResetEnergy();
-        cards_to_draw = 5;
+        int16_t cards_to_draw = 5;
         if (relics.pure_water) {
             hand.AddCard(card_miracle);
         }
@@ -537,8 +556,16 @@ struct Node {
         if (relics.bronze_scales) {
             buff[kBuffThorns] += 3;
         }
-        player_choice = false;
-        generate_mob_intents = true;
+        // add draw card and generate mob intent preactions
+        assert(!HasPendingActions());
+        pending_action[0].type = kActionDrawCards;
+        pending_action[0].arg[0] = cards_to_draw;
+        pending_action[0].arg[1] = 0;
+        pending_action[1].type = kActionGenerateMobIntents;
+        pending_action[1].arg[0] = 0;
+        pending_action[1].arg[1] = 0;
+        //player_choice = false;
+        //generate_mob_intents = true;
         battle_done = false;
     }
     // convert to human readable string
@@ -569,7 +596,7 @@ struct Node {
             }
         }
         // last action
-        if (parent != nullptr && parent->player_choice) {
+        if (parent != nullptr && !parent->HasPendingActions()) {
             if (first_item) {
                 first_item = false;
             } else {
@@ -583,7 +610,7 @@ struct Node {
             } else {
                 ss << ", ";
             }
-            ss << "turn=" << turn;
+            ss << "turn=" << (int) turn;
         }
         if (first_item) {
             first_item = false;
@@ -597,7 +624,7 @@ struct Node {
         } else {
             ss << ", ";
         }
-        ss << "hp=" << hp << "/" << max_hp;
+        ss << "hp=" << (int) hp << "/" << (int) max_hp;
         if (stance == kStanceWrath) {
             ss << ", Wrath";
         } else if (stance == kStanceCalm) {
@@ -609,14 +636,14 @@ struct Node {
         }
         if (turn == 0) {
         }
-        if (turn != 0 && cards_to_draw) {
-            ss << ", to_draw=" << cards_to_draw;
+        if (turn != 0 && pending_action[0].type == kActionDrawCards) {
+            ss << ", to_draw=" << (int) pending_action[0].arg[0];
         }
         if (!tree_solved && block) {
-            ss << ", block=" << block;
+            ss << ", block=" << (int) block;
         }
-        if (player_choice) {
-            ss << ", energy=" << energy;
+        if (!HasPendingActions()) {
+            ss << ", energy=" << (int) energy;
             ss << ", hand=" << hand.ToString();
         } else if (!hand.IsEmpty()) {
             ss << ", hand=" << hand.ToString();
@@ -639,7 +666,8 @@ struct Node {
             if (monster[i].block) {
                 ss << ", block=" << (int) monster[i].block;
             }
-            if (!generate_mob_intents) {
+            if (pending_action[0].type != kActionGenerateMobIntents &&
+                    pending_action[1].type != kActionGenerateMobIntents) {
                 ss << ", " << monster[i].base->intent[monster[i].last_intent[0]].name;
             }
             if (monster[i].buff[kBuffStrength]) {
@@ -740,7 +768,7 @@ struct Node {
     // (simulate end of turn and mob actions)
     void EndTurn() {
         // set tree information
-        player_choice = false;
+        //player_choice = false;
         parent_decision.type = kDecisionEndTurn;
         // process orbs
 #ifdef USE_ORBS
@@ -880,8 +908,16 @@ struct Node {
         turn += 1;
         ResetEnergy();
         block = 0;
-        generate_mob_intents = true;
-        cards_to_draw = 5;
+        assert(!HasPendingActions());
+        pending_action[0].type = kActionDrawCards;
+        pending_action[0].arg[0] = 5;
+        pending_action[0].arg[1] = 0;
+        pending_action[1].type = kActionGenerateMobIntents;
+        pending_action[1].arg[0] = 0;
+        pending_action[1].arg[1] = 0;
+        // TODO: factor in relics that increase cards to draw
+        //generate_mob_intents = true;
+        //cards_to_draw = 5;
         // cycle player buffs
         buff.Cycle();
     }
@@ -1245,6 +1281,17 @@ struct Node {
     }
     // return true if this node is strictly worse or equal to the given node
     bool IsWorseOrEqual(const Node & that) const {
+        for (std::size_t i = 0; i < MAX_PENDING_ACTIONS; ++i) {
+            if (pending_action[i].type != that.pending_action[i].type) {
+                return false;
+            }
+            if (pending_action[i].type == kActionNone) {
+                break;
+            }
+            if (pending_action[i].arg[0] != that.pending_action[i].arg[0]) {
+                return false;
+            }
+        }
         if (last_card_attack_matters &&
                 last_card_attack != that.last_card_attack) {
             return false;
@@ -1273,9 +1320,9 @@ struct Node {
         if (energy > that.energy) {
             return false;
         }
-        if (cards_to_draw != that.cards_to_draw) {
-            return false;
-        }
+        //if (cards_to_draw != that.cards_to_draw) {
+        //    return false;
+        //}
         if (hand != that.hand) {
             return false;
         }

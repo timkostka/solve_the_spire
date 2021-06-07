@@ -5,8 +5,11 @@
 // max number of mobs per node
 constexpr unsigned int MAX_MOBS_PER_NODE = 2;
 
+// max number of mobs per node
+constexpr unsigned int MAX_PENDING_ACTIONS = 2;
+
 // max number of actions per card
-constexpr unsigned int MAX_CARD_ACTIONS = 5;
+constexpr unsigned int MAX_CARD_ACTIONS = 4;
 
 // max number of cards in hand
 constexpr unsigned int MAX_HAND_SIZE = 10;

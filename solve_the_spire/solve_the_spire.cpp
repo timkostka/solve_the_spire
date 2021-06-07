@@ -236,8 +236,9 @@ struct TreeStruct {
     }
     // generate mob intents
     void GenerateMobIntents(Node & node) {
-        assert(node.generate_mob_intents);
-        node.player_choice = false;
+        //assert(node.generate_mob_intents);
+        assert(node.pending_action[0].type == kActionGenerateMobIntents);
+        //node.player_choice = false;
         // hold new intent list for all mobs
         std::vector<std::pair<double, uint8_t>> new_intent[MAX_MOBS_PER_NODE];
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
@@ -251,7 +252,8 @@ struct TreeStruct {
         while (true) {
             // add this node
             Node & new_node = CreateChild(node, true);
-            new_node.generate_mob_intents = false;
+            new_node.PopPendingAction();
+            //new_node.generate_mob_intents = false;
             new_node.composite_objective = new_node.GetMaxFinalObjective();
             for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
                 if (!node.monster[i].Exists()) {
@@ -279,8 +281,10 @@ struct TreeStruct {
     }
     // draw cards
     void DrawCards(Node & node) {
-        assert(node.cards_to_draw > 0);
-        node.player_choice = false;
+        //assert(node.cards_to_draw > 0);
+        assert(node.pending_action[0].type == kActionDrawCards);
+        assert(node.pending_action[0].arg[0] > 0);
+        //node.player_choice = false;
         // if draw pile is empty, move cards from discard to draw pile
         if (node.draw_pile.IsEmpty() && !node.discard_pile.IsEmpty()) {
             // add new node
@@ -291,7 +295,7 @@ struct TreeStruct {
             return;
         }
         // draw as many cards as we can
-        card_count_t to_draw = node.cards_to_draw;
+        card_count_t to_draw = (card_count_t) node.pending_action[0].arg[0];
         if (node.draw_pile.Count() < to_draw) {
             to_draw = node.draw_pile.Count();
         }
@@ -302,9 +306,10 @@ struct TreeStruct {
         if (to_draw == 0) {
             // add new node
             Node & new_node = CreateChild(node, true);
+            new_node.PopPendingAction();
             // we have no cards to draw and/or our hand is full
-            new_node.cards_to_draw = 0;
-            new_node.player_choice = true;
+            //new_node.cards_to_draw = 0;
+            //new_node.player_choice = true;
             return;
         }
         // else draw all cards we can and add each as a child node
@@ -312,13 +317,17 @@ struct TreeStruct {
         for (const auto & choice : choices) {
             // add new node
             Node & new_node = CreateChild(node, true);
-            new_node.cards_to_draw -= to_draw;
+            if (to_draw == new_node.pending_action[0].arg[0]) {
+                new_node.PopPendingAction();
+            } else {
+                new_node.pending_action[0].arg[0] -= to_draw;
+            }
             new_node.probability *= choice.first;
             new_node.hand.AddCard(choice.second.first);
             new_node.draw_pile = choice.second.second;
-            if (new_node.cards_to_draw == 0) {
-                new_node.player_choice = true;
-            }
+            //if (new_node.cards_to_draw == 0) {
+                //new_node.player_choice = true;
+            //}
             new_node.child.clear();
         }
     }
@@ -364,7 +373,7 @@ struct TreeStruct {
             assert(node_ptr->parent != nullptr);
             Node & node = *node_ptr;
             Node & parent = *node_ptr->parent;
-            assert(parent.player_choice);
+            assert(!parent.HasPendingActions());
             // delete all other children except for this one
             assert(parent.child.size() >= 1);
             if (parent.child.size() != 1) {
@@ -411,8 +420,8 @@ struct TreeStruct {
         }
     }
     // find player choice nodes
-    void FindPlayerChoices(Node & top_node/*, bool is_critical*/) {
-        top_node.player_choice = true;
+    void FindPlayerChoices(Node & top_node) {
+        //top_node.player_choice = true;
         // nodes we must make a decision at
         std::vector<Node *> decision_nodes;
         decision_nodes.push_back(&top_node);
@@ -618,6 +627,7 @@ struct TreeStruct {
     // start new battle and generate mobs
     void GenerateBattle(Node & this_node) {
         assert(this_node.turn == 0);
+        assert(this_node.pending_action[0].type == kActionGenerateBattle);
         if (fight_map.find(fight_type) == fight_map.end()) {
             printf("ERROR: fight_type not found in fight_map\n");
             exit(1);
@@ -633,6 +643,7 @@ struct TreeStruct {
         for (auto & layout : mob_layouts) {
             // create one node per mob layout
             Node & new_node = CreateChild(this_node, false);
+            new_node.PopPendingAction();
             new_node.probability *= layout.first;
             if (layout.second.size() > MAX_MOBS_PER_NODE) {
                 std::cout << "ERROR: increase MAX_MOBS_PER_NODE to at least "
@@ -706,14 +717,12 @@ struct TreeStruct {
     // return the profile line for this tree
     std::string GetProfileLine() {
         char profile_line[256] = {0};
-        //std::ostringstream ss;
         char buffer[80];
         time_t rawtime;
         struct tm * timeinfo;
         time(&rawtime);
         timeinfo = localtime(&rawtime);
         strftime(buffer, sizeof(buffer), "%Y-%m-%d   %H:%M:%S", timeinfo);
-        //snprintf(buffer, sizeof(buffer), );
         snprintf(profile_line, sizeof(profile_line),
             "%s   %9s   %8s   %6s   %6.3f s\n",
             buffer,
@@ -773,7 +782,9 @@ struct TreeStruct {
                 }
                 // count cards drawn
                 std::size_t turn_index = (std::size_t) node.turn - 1;
-                if (node.cards_to_draw == 0 && parent.cards_to_draw > 0) {
+                // if (node.cards_to_draw == 0 && parent.cards_to_draw > 0) {
+                if (node.pending_action[0].type != kActionDrawCards &&
+                        parent.pending_action[0].type == kActionDrawCards) {
                     for (auto & item : node.hand.ptr->card) {
                         if (cards_drawn[turn_index].find(item.first) ==
                                 cards_drawn[turn_index].end()) {
@@ -784,7 +795,7 @@ struct TreeStruct {
                     }
                 }
                 // count cards played
-                if (parent.player_choice &&
+                if (!parent.HasPendingActions() &&
                         node.parent_decision.type == kDecisionPlayCard) {
                     auto index = node.parent_decision.argument[0];
                     if (cards_played[turn_index].find(index) ==
@@ -1020,7 +1031,7 @@ struct TreeStruct {
             // if not player choice, objective is probability weighted average of
             // children and tree is solved iff all children are solved
             assert(node.child.size() > 1);
-            if (!node.player_choice) {
+            if (node.HasPendingActions()) {
                 double x = node.CalculateCompositeObjective();
                 bool solved = node.AreChildrenSolved();
                 if (node.composite_objective != x || node.tree_solved != solved) {
@@ -1167,7 +1178,7 @@ struct TreeStruct {
                 pass = false;
             }
         }
-        if (node.player_choice && node.tree_solved) {
+        if (!node.HasPendingActions() && node.tree_solved) {
             assert(node.child.size() == 1);
         }
         double p = 0.0;
@@ -1234,6 +1245,8 @@ struct TreeStruct {
         // expand nodes until they're all done
         std::size_t iteration = 0;
         while (true) {
+            //std::cout << "\n";
+            //top_node_ptr->PrintTree();
             //VerifyCompositeObjective(*top_node_ptr);
             ++iteration;
             // update every second
@@ -1277,25 +1290,43 @@ struct TreeStruct {
             Node & this_node = *this_node_ptr;
             //printf("Expanding (%u): %s\n", (unsigned int) iteration, this_node.ToString().c_str());
             ++expanded_node_count;
+            // do next preaction
+            if (this_node.pending_action[0].type != kActionNone) {
+                if (this_node.pending_action[0].type == kActionGenerateBattle) {
+                    //this_node.player_choice = false;
+                    GenerateBattle(this_node);
+                    UpdateTree(&this_node);
+                } else if (this_node.pending_action[0].type == kActionGenerateMobIntents) {
+                    GenerateMobIntents(this_node);
+                    UpdateTree(&this_node);
+                } else if (this_node.pending_action[0].type == kActionDrawCards) {
+                    DrawCards(this_node);
+                    UpdateTree(&this_node);
+                } else {
+                    printf("ERROR: unexpected preaction type\n");
+                    exit(1);
+                }
+                continue;
+            }
             // if just starting, do start of battle initialization
-            if (this_node.turn == 0) {
-                this_node.player_choice = false;
-                GenerateBattle(this_node);
-                UpdateTree(&this_node);
-                continue;
-            }
+            //if (this_node.turn == 0) {
+            //    this_node.player_choice = false;
+            //    GenerateBattle(this_node);
+            //    UpdateTree(&this_node);
+            //    continue;
+            //}
             // if intents need generated, generate them
-            if (this_node.generate_mob_intents) {
-                GenerateMobIntents(this_node);
-                UpdateTree(&this_node);
-                continue;
-            }
+            //if (this_node.generate_mob_intents) {
+            //    GenerateMobIntents(this_node);
+            //    UpdateTree(&this_node);
+            //    continue;
+            //}
             // if cards need drawn, draw them
-            if (this_node.cards_to_draw) {
-                DrawCards(this_node);
-                UpdateTree(&this_node);
-                continue;
-            }
+            //if (this_node.cards_to_draw) {
+            //    DrawCards(this_node);
+            //    UpdateTree(&this_node);
+            //    continue;
+            //}
             // else player can play a card or end turn
             //if (iteration == 117) {
             //    this_node.PrintTree();
@@ -1901,12 +1932,12 @@ int main(int argc, char ** argv) {
         //start_node.deck.RemoveCard(card_vigilance.GetIndex());
 
         start_node.hp = start_node.max_hp * 9 / 10;
-        //start_node.fight_type = kFightAct1EasyCultist;
-        //start_node.fight_type = kFightAct1EasyJawWorm;
-        //start_node.fight_type = kFightAct1EasyLouses;
+        //tree.fight_type = kFightAct1EasyCultist;
+        //tree.fight_type = kFightAct1EasyJawWorm;
+        //tree.fight_type = kFightAct1EasyLouses;
         tree.fight_type = kFightAct1EliteGremlinNob;
-        //start_node.fight_type = kFightAct1EliteLagavulin;
-        //start_node.fight_type = kFightTestOneLouse;
+        //tree.fight_type = kFightAct1EliteLagavulin;
+        //tree.fight_type = kFightTestOneLouse;
     }
 
     /*if (profile) {

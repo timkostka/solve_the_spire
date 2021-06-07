@@ -238,7 +238,7 @@ struct CardCollection {
     // convert deck to a human readable form
     string ToString() const {
         std::stringstream ss;
-        ss << "{" << total << " cards";
+        ss << "{" << (int) total << " cards";
         const Card * last_card = nullptr;
         bool first_card = true;
         for (auto & i : card) {

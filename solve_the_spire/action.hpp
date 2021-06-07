@@ -12,7 +12,11 @@ enum StanceEnum : uint8_t {
 // action type
 enum ActionType : uint8_t {
     // no action
-    kActionNone,
+    kActionNone = 0,
+    // generate the battle
+    kActionGenerateBattle,
+    // generate mob intents
+    kActionGenerateMobIntents,
     // attack a single enemy
     // first argument is attack amount
     kActionAttack,
