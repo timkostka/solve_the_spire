@@ -26,7 +26,11 @@ struct CardFlagStruct {
 
     unsigned int unplayable : 1;
 
+    // true if this targets an enemy
     unsigned int targeted : 1;
+
+    // true if this targets a card in hand
+    unsigned int target_card_in_hand : 1;
 
     // cost is X
     unsigned int x_cost : 1;

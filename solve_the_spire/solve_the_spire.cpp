@@ -203,7 +203,7 @@ struct TreeStruct {
         // add it
         optional_nodes.insert(&node);
     }
-    // create a new node and return the pointer
+    // create a new node and return a reference to it
     Node & CreateChild(Node & node, bool add_to_optional) {
         //static std::size_t next_index = 0;
         //++next_index;
@@ -226,7 +226,7 @@ struct TreeStruct {
         //new_node.index = next_index;
         new_node.child.clear();
         new_node.parent = &node;
-        ++new_node.layer = node.layer + 1;
+        ++new_node.layer;
         node.child.push_back(&new_node);
         if (add_to_optional) {
             new_node.path_objective = new_node.GetPathObjective();
@@ -421,11 +421,6 @@ struct TreeStruct {
     }
     // find player choice nodes
     void FindPlayerChoices(Node & top_node) {
-        // TODO
-        // prevent nodes which end up needing to draw more cards via playing Pommel Strike
-        // from being expanded further
-
-        //top_node.player_choice = true;
         // nodes we must make a decision at
         std::vector<Node *> decision_nodes;
         decision_nodes.push_back(&top_node);
@@ -440,7 +435,6 @@ struct TreeStruct {
                 Node & this_node = *this_node_ptr;
                 // add end the turn node
                 Node & new_node = CreateChild(this_node, false);
-                new_node.layer = top_node.layer + 1;
                 new_node.EndTurn();
                 // if this path ends the battle at the best possible objective,
                 // choose and and don't evaluate other decisions
@@ -461,13 +455,13 @@ struct TreeStruct {
                     }
                     // play this card
                     if (card.flag.targeted) {
+                        assert(!card.flag.target_card_in_hand);
                         // if targeted, cycle among all possible targets
                         for (int m = 0; m < MAX_MOBS_PER_NODE; ++m) {
                             if (!this_node.monster[m].Exists()) {
                                 continue;
                             }
                             Node & new_node = CreateChild(this_node, false);
-                            new_node.layer = top_node.layer + 1;
                             card_index_t index = this_node.hand.ptr->card[i].first;
                             new_node.hand.RemoveCard(index);
                             new_node.PlayCard(index, m);
@@ -492,6 +486,66 @@ struct TreeStruct {
                             } else {
                                 new_decision_nodes.push_back(&new_node);
                             }
+                        }
+                    } else if (card.flag.target_card_in_hand) {
+                        assert(!card.flag.targeted);
+                        assert(&card == &card_armaments);
+                        // play on each card that has an upgraded version
+                        for (uint8_t c = 0; c < this_node.hand.ptr->card.size(); ++c) {
+                            const Card & card = *card_map[this_node.hand.ptr->card[c].first];
+                            if (card.upgraded_version != nullptr) {
+                                Node & new_node = CreateChild(this_node, false);
+                                card_index_t index = this_node.hand.ptr->card[i].first;
+                                new_node.hand.RemoveCard(index);
+                                new_node.PlayCard(index, c);
+                                new_node.SortMobs();
+                                // if this is the best possible objective,
+                                // don't process any further choices
+                                if (new_node.IsBattleDone() &&
+                                    new_node.GetMaxFinalObjective() ==
+                                    top_node.GetMaxFinalObjective()) {
+                                    SelectTerminalDecisionPath(top_node, new_node);
+                                    return;
+                                }
+                                // add to exhaust or discard pile
+                                if (card.flag.exhausts) {
+                                    new_node.exhaust_pile.AddCard(index);
+                                } else {
+                                    new_node.discard_pile.AddCard(index);
+                                }
+                                // add new decision point
+                                if (new_node.IsBattleDone() || new_node.HasPendingActions()) {
+                                    ending_node.push_back(&new_node);
+                                } else {
+                                    new_decision_nodes.push_back(&new_node);
+                                }
+                            }
+                        }
+                        // play on nothing
+                        Node & new_node = CreateChild(this_node, false);
+                        card_index_t index = this_node.hand.ptr->card[i].first;
+                        new_node.hand.RemoveCard(index);
+                        new_node.PlayCard(index, 255);
+                        new_node.SortMobs();
+                        // if this is the best possible objective,
+                        // don't process any further choices
+                        if (new_node.IsBattleDone() &&
+                            new_node.GetMaxFinalObjective() ==
+                            top_node.GetMaxFinalObjective()) {
+                            SelectTerminalDecisionPath(top_node, new_node);
+                            return;
+                        }
+                        // add to exhaust or discard pile
+                        if (card.flag.exhausts) {
+                            new_node.exhaust_pile.AddCard(index);
+                        } else {
+                            new_node.discard_pile.AddCard(index);
+                        }
+                        // add new decision point
+                        if (new_node.IsBattleDone() || new_node.HasPendingActions()) {
+                            ending_node.push_back(&new_node);
+                        } else {
+                            new_decision_nodes.push_back(&new_node);
                         }
                     } else {
                         Node & new_node = CreateChild(this_node, false);
@@ -934,10 +988,10 @@ struct TreeStruct {
         if (death_chance > 0.0) {
             remaining_mob_hp /= death_chance;
             printf("- Chance to die is %.3g%% (%.2f remaining mob HP)\n",
-                death_chance * 100, remaining_mob_hp);
+                100 * death_chance, remaining_mob_hp);
         }
         if (no_loss_chance > 0.0) {
-            printf("- Chance to lose no life is %.3g%%\n", no_loss_chance);
+            printf("- Chance to lose no life is %.3g%%\n", 100 * no_loss_chance);
         }
         printf("\nCards stats:\n");
         std::size_t max_card_name_length = 0;
@@ -1256,10 +1310,10 @@ struct TreeStruct {
             // update every second
             stats_shown = false;
             if (show_stats || clock() >= next_update) {
-                double p = 0.0;
+                /*double p = 0.0;
                 for (auto & node_ptr : terminal_nodes) {
                     p += node_ptr->probability;
-                }
+                }*/
                 std::size_t tree_nodes =
                     1 + created_node_count - deleted_nodes.size();
                 std::cout << "Tree stats: maxobj=" <<
@@ -1269,7 +1323,8 @@ struct TreeStruct {
                     ", generated=" <<
                     ToString(created_node_count + reused_node_count) <<
                     ", stored=" << ToString(tree_nodes);
-                printf(", ~%.3g%% complete\n", p * 100);
+                printf(", %.3g%% complete\n",
+                    top_node_ptr->GetSolvedCompletionPercent() * 100);
                 next_update =
                     clock() + (std::clock_t) (update_duration * CLOCKS_PER_SEC);
                 update_duration *= 2;
@@ -1847,17 +1902,18 @@ int main(int argc, char ** argv) {
         //start_node.deck.AddCard(card_crush_joints);
         //start_node.deck.RemoveCard(card_strike.GetIndex(), 5);
         //start_node.deck.AddCard(card_pommel_strike);
-        start_node.deck.AddCard(card_strike_plus);
+        //start_node.deck.AddCard(card_strike_plus);
+        //start_node.deck.AddCard(card_armaments_plus);
 
         //start_node.deck.RemoveCard(card_ascenders_bane.GetIndex());
         //start_node.deck.RemoveCard(card_vigilance.GetIndex());
 
         start_node.hp = start_node.max_hp * 9 / 10;
-        tree.fight_type = kFightAct1EliteGremlinNob;
+        //tree.fight_type = kFightAct1EliteGremlinNob;
         //tree.fight_type = kFightAct1EasyCultist;
         //tree.fight_type = kFightAct1EasyJawWorm;
         //tree.fight_type = kFightAct1EasyLouses;
-        //tree.fight_type = kFightAct1EliteLagavulin;
+        tree.fight_type = kFightAct1EliteLagavulin;
         //tree.fight_type = kFightTestOneLouse;
     }
 
@@ -1887,7 +1943,7 @@ int main(int argc, char ** argv) {
 
     //CompareRelics(start_node);
 
-    CompareCards(start_node, {0}, {0});
+    //CompareCards(start_node, {0}, {0});
     //CompareWatcherCards(start_node);
 
     exit(0);

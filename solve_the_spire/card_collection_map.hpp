@@ -19,17 +19,18 @@ struct CardCollectionMap {
 struct CardCollectionPtr {
     // pointer to card collection within CardCollectionMap.collection
     const CardCollection * ptr;
-    // default constructor
-    CardCollectionPtr() : ptr(nullptr) {
-    }
-    // constructor from CardCollection
-    CardCollectionPtr(const CardCollection & deck) :
-        ptr(CardCollectionMap::Find(deck)) {
-    }
     // clear the deck
     void Clear() {
         CardCollection empty_deck;
         ptr = CardCollectionMap::Find(empty_deck);
+    }
+    // default constructor
+    CardCollectionPtr() : ptr(nullptr) {
+        Clear();
+    }
+    // constructor from CardCollection
+    CardCollectionPtr(const CardCollection & deck) :
+        ptr(CardCollectionMap::Find(deck)) {
     }
     // compare two
     bool operator == (const CardCollectionPtr & that) const {
@@ -93,6 +94,46 @@ struct CardCollectionPtr {
     std::string ToString() const {
         return ptr->ToString();
     }
+    // return true if this deck is strictly worse or equal to another deck
+    bool IsWorseOrEqual(const CardCollectionPtr & that) const {
+        // if they're equal
+        if (this == &that) {
+            return true;
+        }
+        // if we don't consider upgraded cards strictly better, they're different
+        if (!upgrades_strictly_better) {
+            return false;
+        }
+        // if card number is different, neither is worse than the other
+        if (!upgrades_strictly_better || ptr->total != that.ptr->total) {
+            return false;
+        }
+        // if this deck contains more upgraded cards, it is not worse
+        for (auto & item : that.ptr->card) {
+            // count number of this card or upgraded cards in current deck
+            card_index_t card_index = item.first;
+            const Card & card = *card_map[card_index];
+            card_count_t that_count = item.second;
+            card_count_t this_count = ptr->CountCard(card_index);
+            card_count_t this_upgraded_count = 0;
+            card_count_t that_upgraded_count = 0;
+            if (card.upgraded_version != nullptr) {
+                card_index_t upgraded_index = card.upgraded_version->GetIndex();
+                this_upgraded_count = ptr->CountCard(upgraded_index);
+                that_upgraded_count = that.ptr->CountCard(upgraded_index);
+            }
+            // this has more upgraded cards and is potentially better
+            if (this_upgraded_count > that_upgraded_count) {
+                return false;
+            }
+            // this has more cards and is potentially better
+            if (this_count + this_upgraded_count > that_count + that_upgraded_count) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 };
 
 // set of all current card collections

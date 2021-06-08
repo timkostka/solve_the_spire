@@ -277,13 +277,13 @@ struct Node {
         tree_solved = true;
         composite_objective = hp;
         // TODO: if we die, ensure we choose path that lowers the mob HP the most
-        //if (hp == 0) {
-        //    for (auto & mob : monster) {
-        //        if (mob.Exists()) {
-        //            composite_objective -= mob.hp / 1000.0;
-        //        }
-        //    }
-        //}
+        if (hp == 0) {
+            for (auto & mob : monster) {
+                if (mob.Exists()) {
+                    composite_objective -= mob.hp / 1000.0;
+                }
+            }
+        }
     }
     // initialize a start of fight node
     // (only things that need initialized outside of this are:
@@ -368,6 +368,27 @@ struct Node {
             }
         }
         return true;
+    }
+    // return true if this has children
+    bool HasChildren() const {
+        return !child.empty();
+    }
+    // return completion percent of this node
+    // 1.0 = all children done
+    double GetSolvedCompletionPercent() const {
+        if (tree_solved) {
+            return 1.0;
+        }
+        if (HasChildren()) {
+            double p = 0.0;
+            double dp = 1.0 / child.size();
+            for (auto & this_child_ptr : child) {
+                p += dp * this_child_ptr->GetSolvedCompletionPercent();
+            }
+            return p;
+        } else {
+            return 0.0;
+        }
     }
     // return the number of links between this and the given ancestor
     uint16_t CountLevelsBelow(const Node & that) const {
@@ -950,6 +971,7 @@ struct Node {
         }
     }
     // play a card
+    // target is mob index or card in hand index
     void PlayCard(card_index_t index, uint8_t target = 0) {
         const auto & card = *card_map[index];
         // set up decision information
@@ -982,6 +1004,35 @@ struct Node {
                 break;
             }
             switch (action.type) {
+                case kUpgradeOneCardInHand:
+                {
+                    // if valid target
+                    if (hand.ptr->card.size() > target) {
+                        card_index_t card_index = hand.ptr->card[target].first;
+                        // if upgraded version exists
+                        if (card_map[card_index]->upgraded_version != nullptr) {
+                            card_index_t new_index =
+                                card_map[card_index]->upgraded_version->GetIndex();
+                            hand.RemoveCard(card_index);
+                            hand.AddCard(new_index);
+                        }
+                    }
+                    break;
+                }
+                case kUpgradeAllCardsInHand:
+                {
+                    CardCollection new_hand;
+                    for (auto & item : hand.ptr->card) {
+                        card_index_t card_index = item.first;
+                        if (card_map[item.first]->upgraded_version != nullptr) {
+                            card_index = card_map[item.first]->upgraded_version->GetIndex();
+                        }
+                        new_hand.AddCard(card_index, item.second);
+                    }
+                    hand = new_hand;
+                    break;
+                }
+
                 case kActionAttackPerfectedStrike:
                 case kActionAttackHeavyBlade:
                 case kActionAttackBowlingBash:
@@ -1292,6 +1343,18 @@ struct Node {
             if (pending_action[i].arg[0] != that.pending_action[i].arg[0]) {
                 return false;
             }
+        }
+        if (discard_pile != that.discard_pile) {
+            return false;
+        }
+        if (draw_pile != that.draw_pile) {
+            return false;
+        }
+        if (exhaust_pile != that.exhaust_pile) {
+            return false;
+        }
+        if (hand != that.hand) {
+            return false;
         }
         if (turn != that.turn) {
             return false;

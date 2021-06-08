@@ -101,6 +101,10 @@ enum ActionType : uint8_t {
     kActionHeal,
     // attack for the current amount of block
     kActionAttackBodySlam,
+    // upgrade one card in hand
+    kUpgradeOneCardInHand,
+    // upgrade call cards in hand
+    kUpgradeAllCardsInHand,
 };
 
 // An action is a single event caused by a card such as damage, or a buff

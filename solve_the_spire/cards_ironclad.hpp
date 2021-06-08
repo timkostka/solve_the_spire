@@ -24,7 +24,14 @@ const Card card_anger = {
     {.attack = 1, .targeted = 1, .common = 1, .ironclad = 1},
     {{kActionAttack, 6, 1}, {kActionAddCardToDiscardPile, card_anger.GetIndex(), 1}, {kActionNone}}};
 
-// armaments
+const Card card_armaments_plus = {
+    "Armaments+", 1, 1, nullptr,
+    {.skill = 1, .common = 1, .ironclad = 1},
+    {{kActionBlock, 5}, {kUpgradeAllCardsInHand}, {kActionNone}}};
+const Card card_armaments = {
+    "Armaments", 1, 1, & card_armaments_plus,
+    {.skill = 1, .target_card_in_hand = 1, .common = 1, .ironclad = 1},
+    {{kActionBlock, 5}, {kUpgradeOneCardInHand}, {kActionNone}}};
 
 const Card card_body_slam_plus = {
     "Body Slam+", 0, 0, nullptr,

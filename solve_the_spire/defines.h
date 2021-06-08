@@ -41,3 +41,6 @@ constexpr uint32_t max_nodes_to_print = 500000;
 constexpr bool show_player_choices = false;
 
 //#define USE_ORBS
+
+// if true, will treat an upgraded card as strictly better than a non-upgraded one
+constexpr bool upgrades_strictly_better = true;
