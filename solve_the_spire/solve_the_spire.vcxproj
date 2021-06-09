@@ -168,6 +168,7 @@
     <ClInclude Include="presets.hpp" />
     <ClInclude Include="relics.hpp" />
     <ClInclude Include="stopwatch.hpp" />
+    <ClInclude Include="tree.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -220,7 +220,7 @@ const Card card_hemokinesis_plus = {
     {.attack = 1, .targeted = 1, .uncommon = 1, .ironclad = 1},
     {{kActionLoseHP, 2}, {kActionAttack, 20, 1}, {kActionNone}}};
 const Card card_hemokinesis = {
-    "Hemokinesis", 1, 1, & card_hemokinesis_plus,
+    "Hemokinesis", 1, 1, &card_hemokinesis_plus,
     {.attack = 1, .targeted = 1, .uncommon = 1, .ironclad = 1},
     {{kActionLoseHP, 2}, {kActionAttack, 15, 1}, {kActionNone}}};
 

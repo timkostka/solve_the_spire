@@ -68,5 +68,8 @@
     <ClInclude Include="cards_status.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="tree.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

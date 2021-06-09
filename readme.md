@@ -46,6 +46,14 @@ For the moment, we do not consider side quests such as Hand of Greed, Ritual Dag
 
 Life gain side quests such as Bandage are considered.
 
+## Optimal way to die
+
+Assuming a fight is not winnable, what is optimal play? In some sense, it doesn't matter since the end result is the same. However, for a sufficient complex game state, a human would not be able to tell at the onset of the battle if it is winnable or not, and the optimal strategy would be to try to win, or try to get the monster to 0hp.
+
+If we follow this thinking, we can choose to define optimal play of an unwinnable solution as the path that gets the monster down to the least number of hit points before dying.
+
+This definiton allows us to have a metric for the improvement of a deck even if the end result is death.
+
 # Game tree
 
 To simulate a battle, we store game states within a tree structure with links between each node. To progress from one node to another, the game state is advanced by something like drawing cards, playing a card, ending the turn, or generating enemy intents. Broadly, these connections can be categorized into player decisions and automatic events.

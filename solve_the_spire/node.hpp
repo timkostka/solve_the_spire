@@ -233,7 +233,7 @@ struct Node {
     // return an objective function used to evaluate the best decision
     // this function may only use information within this node--no information
     // from children is allowed
-    double GetPathObjective() const {
+    double GetPathObjective() {
         // DEBUG
         return CalculateCompositeObjective() + layer * 1000;
         double x = 5.0 * hp;
@@ -250,6 +250,7 @@ struct Node {
     // return best possible ultimate objective function for a child of this node
     // (it's okay to overestimate, but not ideal)
     double GetMaxFinalObjective() const {
+        assert(!battle_done);
         // TODO: factor in Bandage Up
         if (IsBattleDone()) {
             return hp;
@@ -291,7 +292,7 @@ struct Node {
     void InitializeStartingNode() {
         assert(hp > 0);
         assert(max_hp >= hp);
-        assert(!deck.IsEmpty());
+        //assert(!deck.IsEmpty());
         // TODO: populate last_card_attack/skill_matters based on cards in deck
         stance = kStanceNone;
         discard_pile.Clear();
@@ -421,10 +422,12 @@ struct Node {
         return true;
     }
     // return an estimate for the composite objective by looking at direct children
+    // and also update solved state
     double CalculateCompositeObjective() const {
         // if no children, just get max
         if (child.empty()) {
-            return GetMaxFinalObjective();
+            return composite_objective;
+            //return GetMaxFinalObjective();
         }
         // if one child, just return objective from that child
         if (child.size() == 1) {
@@ -467,7 +470,17 @@ struct Node {
     void CalculateCompositeObjectiveOfChildren() {
         for (auto & child_ptr : child) {
             child_ptr->CalculateCompositeObjectiveOfChildren();
-            child_ptr->composite_objective = child_ptr->CalculateCompositeObjective();
+            if (!child_ptr->tree_solved) {
+                child_ptr->composite_objective = child_ptr->CalculateCompositeObjective();
+            }
+        }
+        // if not solved, calculate this composite objective
+        if (!tree_solved) {
+            composite_objective = CalculateCompositeObjective();
+        }
+        // if all children solved, mark this solved
+        if (child.size() == 1 && child[0]->tree_solved) {
+            tree_solved = true;
         }
     }
     // return true if all children are solved
@@ -1333,6 +1346,14 @@ struct Node {
     }
     // return true if this node is strictly worse or equal to the given node
     bool IsWorseOrEqual(const Node & that) const {
+        if (that.IsBattleDone() &&
+            composite_objective <= that.composite_objective) {
+            return true;
+        }
+        if (IsBattleDone()) {
+            return false;
+        }
+        // after this point, neither battle is complete
         for (std::size_t i = 0; i < MAX_PENDING_ACTIONS; ++i) {
             if (pending_action[i].type != that.pending_action[i].type) {
                 return false;
@@ -1370,14 +1391,6 @@ struct Node {
         if (stance != that.stance) {
             return false;
         }
-        if (that.IsBattleDone() &&
-                that.GetMaxFinalObjective() >= GetMaxFinalObjective()) {
-            return true;
-        }
-        if (IsBattleDone()) {
-            return false;
-        }
-        // after this point, neither battle is complete
         if (hp > that.hp) {
             return false;
         }

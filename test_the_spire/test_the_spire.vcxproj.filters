@@ -14,53 +14,59 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\SolveTheSpire\action.hpp">
+    <ClInclude Include="..\solve_the_spire\action.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\buff_state.hpp">
+    <ClInclude Include="..\solve_the_spire\buff_state.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\card_collection.hpp">
+    <ClInclude Include="..\solve_the_spire\card_collection.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\card_collection_map.hpp">
+    <ClInclude Include="..\solve_the_spire\card_collection_map.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\cards.hpp">
+    <ClInclude Include="..\solve_the_spire\cards.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\cards_colorless.hpp">
+    <ClInclude Include="..\solve_the_spire\cards_colorless.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\cards_ironclad.hpp">
+    <ClInclude Include="..\solve_the_spire\cards_ironclad.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\cards_status.hpp">
+    <ClInclude Include="..\solve_the_spire\cards_status.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\defines.h">
+    <ClInclude Include="..\solve_the_spire\defines.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\fight.hpp">
+    <ClInclude Include="..\solve_the_spire\fight.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\monster.hpp">
+    <ClInclude Include="..\solve_the_spire\monster.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\node.hpp">
+    <ClInclude Include="..\solve_the_spire\node.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\orbs.hpp">
+    <ClInclude Include="..\solve_the_spire\orbs.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\presets.hpp">
+    <ClInclude Include="..\solve_the_spire\presets.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\relics.hpp">
+    <ClInclude Include="..\solve_the_spire\relics.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\SolveTheSpire\stopwatch.hpp">
+    <ClInclude Include="..\solve_the_spire\stopwatch.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\solve_the_spire\tree.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

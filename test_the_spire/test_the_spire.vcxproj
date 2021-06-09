@@ -32,39 +32,41 @@
   <ImportGroup Label="Shared" />
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemGroup>
     <ClCompile Include="test_the_spire.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SolveTheSpire\SolveTheSpire.vcxproj">
-      <Project>{58f892a7-fe97-44ba-be33-271dc4384c45}</Project>
-    </ProjectReference>
+    <ClInclude Include="..\solve_the_spire\action.hpp" />
+    <ClInclude Include="..\solve_the_spire\buff_state.hpp" />
+    <ClInclude Include="..\solve_the_spire\cards.hpp" />
+    <ClInclude Include="..\solve_the_spire\cards_colorless.hpp" />
+    <ClInclude Include="..\solve_the_spire\cards_ironclad.hpp" />
+    <ClInclude Include="..\solve_the_spire\cards_status.hpp" />
+    <ClInclude Include="..\solve_the_spire\card_collection.hpp" />
+    <ClInclude Include="..\solve_the_spire\card_collection_map.hpp" />
+    <ClInclude Include="..\solve_the_spire\defines.h" />
+    <ClInclude Include="..\solve_the_spire\fight.hpp" />
+    <ClInclude Include="..\solve_the_spire\monster.hpp" />
+    <ClInclude Include="..\solve_the_spire\node.hpp" />
+    <ClInclude Include="..\solve_the_spire\orbs.hpp" />
+    <ClInclude Include="..\solve_the_spire\presets.hpp" />
+    <ClInclude Include="..\solve_the_spire\relics.hpp" />
+    <ClInclude Include="..\solve_the_spire\stopwatch.hpp" />
+    <ClInclude Include="..\solve_the_spire\tree.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\SolveTheSpire\action.hpp" />
-    <ClInclude Include="..\SolveTheSpire\buff_state.hpp" />
-    <ClInclude Include="..\SolveTheSpire\cards.hpp" />
-    <ClInclude Include="..\SolveTheSpire\cards_colorless.hpp" />
-    <ClInclude Include="..\SolveTheSpire\cards_ironclad.hpp" />
-    <ClInclude Include="..\SolveTheSpire\cards_status.hpp" />
-    <ClInclude Include="..\SolveTheSpire\card_collection.hpp" />
-    <ClInclude Include="..\SolveTheSpire\card_collection_map.hpp" />
-    <ClInclude Include="..\SolveTheSpire\defines.h" />
-    <ClInclude Include="..\SolveTheSpire\fight.hpp" />
-    <ClInclude Include="..\SolveTheSpire\monster.hpp" />
-    <ClInclude Include="..\SolveTheSpire\node.hpp" />
-    <ClInclude Include="..\SolveTheSpire\orbs.hpp" />
-    <ClInclude Include="..\SolveTheSpire\presets.hpp" />
-    <ClInclude Include="..\SolveTheSpire\relics.hpp" />
-    <ClInclude Include="..\SolveTheSpire\stopwatch.hpp" />
-  </ItemGroup>
   <ItemDefinitionGroup />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\SolveTheSpire\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.1.8.1.3\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.targets" Condition="Exists('..\SolveTheSpire\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.1.8.1.3\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.targets')" />
+    <Import Project="..\solve_the_spire\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.1.8.1.4\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.targets" Condition="Exists('..\solve_the_spire\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.1.8.1.4\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.targets')" />
   </ImportGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -75,6 +77,7 @@
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
+      <AdditionalIncludeDirectories>$(SolutionDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -86,11 +89,11 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>C:\Users\tdkostk\Documents\solve_the_spire\SolveTheSpire;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
@@ -106,6 +109,7 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>$(SolutionDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -118,11 +122,11 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>C:\Users\tdkostk\Documents\solve_the_spire\SolveTheSpire;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
@@ -136,6 +140,6 @@
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\SolveTheSpire\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.1.8.1.3\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\SolveTheSpire\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.1.8.1.3\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.targets'))" />
+    <Error Condition="!Exists('..\solve_the_spire\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.1.8.1.4\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\solve_the_spire\packages\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.1.8.1.4\build\native\Microsoft.googletest.v140.windesktop.msvcstl.static.rt-dyn.targets'))" />
   </Target>
 </Project>

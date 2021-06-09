@@ -58,6 +58,10 @@ struct CardCollectionPtr {
         new_deck.RemoveCard(index, count);
         ptr = CardCollectionMap::Find(new_deck);
     }
+    // remove a card
+    void RemoveCard(const Card & card, card_count_t count = 1) {
+        RemoveCard(card.GetIndex(), count);
+    }
     // add a card
     void AddCard(card_index_t index, card_count_t count = 1) {
         CardCollection new_deck = *ptr;

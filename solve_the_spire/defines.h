@@ -29,7 +29,7 @@ constexpr bool print_completed_tree_to_file = true;
 
 // maximum nodes to print to file
 // (if tree is more than this many nodes, it will not be output to a file)
-constexpr uint32_t max_nodes_to_print = 500000;
+constexpr uint32_t max_nodes_to_print = 800000;
 
 // if true, makes probably-better choices when Miracle is in hand
 // (e.g. only play Miracle if we use the energy)
@@ -39,6 +39,10 @@ constexpr uint32_t max_nodes_to_print = 500000;
 // display all player choice nodes
 // (this is for debugging only, significantly increases output)
 constexpr bool show_player_choices = false;
+
+// verify node tree after every expansion
+// (this is for debugging only, significantly slows down program)
+constexpr bool verify_all_expansions = false;
 
 //#define USE_ORBS
 
