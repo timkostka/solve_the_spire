@@ -825,14 +825,16 @@ struct Node {
         // take burn damage and discard burns
         {
             card_count_t burn_count = hand.CountCard(card_burn.GetIndex());
-            for (int i = 0; i < burn_count; ++i) {
+            for (card_count_t i = 0; i < burn_count; ++i) {
                 TakeDamage(2);
             }
-            discard_pile.AddCard(card_burn.GetIndex(), burn_count);
-            hand.RemoveCard(card_burn.GetIndex(), burn_count);
+            if (burn_count) {
+                discard_pile.AddCard(card_burn.GetIndex(), burn_count);
+                hand.RemoveCard(card_burn.GetIndex(), burn_count);
+            }
         }
         // discard all remaining cards except those we retain
-        if (relics.runic_pyramid == 0) {
+        if (!relics.runic_pyramid) {
             CardCollectionPtr new_hand;
             new_hand.Clear();
             for (auto & item : hand.ptr->card) {

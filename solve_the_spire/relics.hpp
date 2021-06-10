@@ -59,7 +59,7 @@ struct RelicStruct {
     //unsigned int meat_on_the_bone : 1;
     //unsigned int meat_on_the_bone : 1;
 
-    // rare elics
+    // rare relics
 
     //unsigned int bird_faced_urn : 1;
     unsigned int calipers : 1;
