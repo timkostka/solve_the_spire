@@ -521,16 +521,24 @@ struct Node {
         }
         hp += amount;
     }
-    // reset energy
+    // add energy at start of battle
     void ResetEnergy() {
-        energy = 3;
+        if (!relics.ice_cream) {
+            energy = 0;
+        }
+        energy += 3;
         if (relics.cursed_key) {
             ++energy;
         }
+        if (relics.coffee_dripper) {
+            ++energy;
+        }
+        energy += buff[kBuffBerserk];
     }
     // reset state to beginning of battle
     void StartBattle() {
         assert(turn == 0);
+        assert(energy == 0);
         turn = 1;
         ResetEnergy();
         int16_t cards_to_draw = 5;
@@ -816,18 +824,12 @@ struct Node {
         }
         // take burn damage and discard burns
         {
-            uint16_t count = hand.CountCard(card_burn.GetIndex());
-            for (int i = 0; i < count; ++i) {
+            card_count_t burn_count = hand.CountCard(card_burn.GetIndex());
+            for (int i = 0; i < burn_count; ++i) {
                 TakeDamage(2);
-                discard_pile.AddCard(card_burn.GetIndex());
-                hand.RemoveCard(card_burn.GetIndex());
             }
-        }
-        for (auto & item : hand.ptr->card) {
-            const Card & card = *card_map[item.first];
-            if (&card == &card_burn) {
-
-            }
+            discard_pile.AddCard(card_burn.GetIndex(), burn_count);
+            hand.RemoveCard(card_burn.GetIndex(), burn_count);
         }
         // discard all remaining cards except those we retain
         if (relics.runic_pyramid == 0) {
@@ -856,7 +858,9 @@ struct Node {
             if (!mob.Exists()) {
                 continue;
             }
-            mob.block = 0;
+            if (!mob.buff[kBuffBarricade]) {
+                mob.block = 0;
+            }
         }
         // do mob actions
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
@@ -925,12 +929,17 @@ struct Node {
                 mob.Block(mob.buff[kBuffMetallicize]);
             }
         }
-        // apply metallicize
-
         // start new turn
         turn += 1;
+        // cycle energy
         ResetEnergy();
-        block = 0;
+        // reset block
+        if (kBuffBarricade) {
+        } else if (block > 15 && relics.calipers) {
+            block -= 15;
+        } else {
+            block = 0;
+        }
         assert(!HasPendingActions());
         pending_action[0].type = kActionDrawCards;
         pending_action[0].arg[0] = 5;
@@ -938,9 +947,15 @@ struct Node {
         pending_action[1].type = kActionGenerateMobIntents;
         pending_action[1].arg[0] = 0;
         pending_action[1].arg[1] = 0;
+        // brutality buff
+        if (buff[kBuffBrutality]) {
+            TakeHPLoss(buff[kBuffBrutality]);
+            if (IsBattleDone()) {
+                return;
+            }
+            pending_action[0].arg[0] += buff[kBuffBrutality];
+        }
         // TODO: factor in relics that increase cards to draw
-        //generate_mob_intents = true;
-        //cards_to_draw = 5;
         // cycle player buffs
         buff.Cycle();
     }

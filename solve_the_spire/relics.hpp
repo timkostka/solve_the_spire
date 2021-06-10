@@ -59,9 +59,45 @@ struct RelicStruct {
     //unsigned int meat_on_the_bone : 1;
     //unsigned int meat_on_the_bone : 1;
 
+    // rare elics
+
+    //unsigned int bird_faced_urn : 1;
+    unsigned int calipers : 1;
+    //unsigned int captains_wheel : 1;
+    //unsigned int dead_branch : 1;
+    //unsigned int du_vu_doll : 1;
+    //unsigned int follilized_helix : 1;
+    //unsigned int gambling_chip : 1;
+    //unsigned int ginger : 1;
+    //unsigned int girya : 1;
+    //unsigned int girya_number : 2;
+    unsigned int ice_cream : 1;
+    //unsigned int incense_burner : 1;
+    //unsigned int incense_burner_number : 3;
+    //unsigned int lizard_tail : 1;
+    //unsigned int lizard_tail_active : 1;
+    //unsigned int mango : 1;
+    //unsigned int old_coin : 1;
+    //unsigned int peace_pipe : 1;
+    //unsigned int pocketwatch : 1;
+    //unsigned int prayer_wheel : 1;
+    //unsigned int shovel : 1;
+    //unsigned int stone_calendar : 1;
+    //unsigned int thread_and_needle : 1;
+    //unsigned int torii : 1;
+    //unsigned int tungsten_rod : 1;
+    //unsigned int turnip : 1;
+    //unsigned int unceasing_top : 1;
+    //unsigned int wing_boots : 1;
+
+    // TODO: class specific rare relics
+
+    // TODO: shop relics
+
     // boss relics
+ 
     //unsigned int busted_crown : 1;
-    //unsigned int coffee_dripper : 1;
+    unsigned int coffee_dripper : 1;
     unsigned int cursed_key : 1;
     //unsigned int ectoplasm : 1;
     //unsigned int fusion_hammer : 1;

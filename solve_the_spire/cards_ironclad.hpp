@@ -339,26 +339,57 @@ const Card card_whirlwind = {
     {.attack = 1, .x_cost = 1, .uncommon = 1, .ironclad = 1},
     {{kActionAttackAllWhirlwind, 5}, {kActionNone}}};
 
-// rare ironclad cards
+/////////////////////////
+// rare ironclad cards //
+/////////////////////////
 
-// barricade
+const Card card_barricade_plus = {
+    "Barricade+", 2, 2, nullptr,
+    {.power = 1, .rare = 1, .ironclad = 1},
+    {{kActionBuff, kBuffBarricade, 1}, {kActionNone}}};
+const Card card_barricade = {
+    "Barricade", 3, 3, &card_barricade_plus,
+    {.power = 1, .rare = 1, .ironclad = 1},
+    {{kActionBuff, kBuffBarricade, 1}, {kActionNone}}};
 
-// berserk
+const Card card_berserk_plus = {
+    "Berserk+", 0, 0, nullptr,
+    {.power = 1, .rare = 1, .ironclad = 1},
+    {{kActionBuff, kBuffVulnerable, 1}, {kActionBuff, kBuffBerserk, 1}, {kActionNone}}};
+const Card card_berserk = {
+    "Berserk", 0, 0, &card_berserk_plus,
+    {.power = 1, .rare = 1, .ironclad = 1},
+    {{kActionBuff, kBuffVulnerable, 2}, {kActionBuff, kBuffBerserk, 1}, {kActionNone}}};
 
 const Card card_bludgeon_plus = {
     "Bludgeon+", 3, 3, nullptr,
     {.attack = 1, .targeted = 1, .rare = 1, .ironclad = 1},
     {{kActionAttack, 42, 1}, {kActionNone}}};
 const Card card_bludgeon = {
-    "Bludgeon", 3, 3, & card_bludgeon_plus,
+    "Bludgeon", 3, 3, &card_bludgeon_plus,
     {.attack = 1, .targeted = 1, .rare = 1, .ironclad = 1},
     {{kActionAttack, 32, 1}, {kActionNone}}};
 
-// brutality
+const Card card_brutality_plus = {
+    "Brutality+", 0, 0, nullptr,
+    {.power = 1, .innate = 1, .rare = 1, .ironclad = 1},
+    {{kActionBuff, kBuffBrutality, 1}, {kActionNone}}};
+const Card card_brutality = {
+    "Brutality", 0, 0, &card_brutality_plus,
+    {.power = 1, .rare = 1, .ironclad = 1},
+    {{kActionBuff, kBuffBrutality, 1}, {kActionNone}}};
 
 // corruption
 
 // demon form
+const Card card_demon_form_plus = {
+    "Demon Form+", 3, 3, nullptr,
+    {.power = 1, .rare = 1, .ironclad = 1},
+    {{kActionBuff, kBuffDemonForm, 3}, {kActionNone}}};
+const Card card_demon_form = {
+    "Demon Form", 3, 3, &card_demon_form_plus,
+    {.power = 1, .rare = 1, .ironclad = 1},
+    {{kActionBuff, kBuffDemonForm, 2}, {kActionNone}}};
 
 // double tap
 
@@ -390,6 +421,13 @@ const Card card_impervious = {
 
 // limit break
 
-// offering
+const Card card_offering_plus = {
+    "Offering+", 0, 0, nullptr,
+    {.skill = 1, .exhausts = 1, .rare = 1, .ironclad = 1},
+    {{kActionLoseHP, 6}, {kActionGainEnergy, 2}, {kActionDrawCards, 5},  {kActionNone}}};
+const Card card_offering = {
+    "Offering", 0, 0, &card_offering_plus,
+    {.skill = 1, .exhausts = 1, .rare = 1, .ironclad = 1},
+    {{kActionLoseHP, 6}, {kActionGainEnergy, 2}, {kActionDrawCards, 3},  {kActionNone}}};
 
 // reaper

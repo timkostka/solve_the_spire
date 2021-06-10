@@ -18,6 +18,11 @@ enum BuffType : uint8_t {
     // at end of turn, decrease strength by this amount and zero this value
     kBuffStrengthDown,
     kBuffRage,
+    kBuffBarricade,
+    kBuffBerserk,
+    kBuffBrutality,
+    kBuffDemonForm,
+    // must be at end (used to get number of buffs and length of array)
     kBuffFinal,
 };
 
@@ -31,6 +36,9 @@ const BuffType positive_buffs[] = {
     kBuffMetallicize,
     kBuffCurlUp,
     kBuffRage,
+    kBuffBarricade,
+    kBuffBerserk,
+    kBuffDemonForm,
 };
 
 // list of negative buffs
@@ -42,14 +50,9 @@ const BuffType negative_buffs[] = {
 };
 
 // list of neutral buffs
-//const BuffType ambiguous_buffs[] = {
-//};
-
-//// true if buff is favorable on a player
-//// e.g. strength is good, vulnerability is bad
-//bool favorable_buff[kBuffFinal] = {
-//    true, true, false, true, true, true, true
-//};
+const BuffType ambiguous_buffs[] = {
+    kBuffBrutality,
+};
 
 // number of stacks of each buff/debuff
 struct BuffState {
@@ -91,6 +94,11 @@ struct BuffState {
                 return false;
             }
         }
+        for (const auto & buff : ambiguous_buffs) {
+            if (value[buff] != that.value[buff]) {
+                return false;
+            }
+        }
         return true;
     }
     // return true if mob buffs are worse or equal
@@ -105,6 +113,11 @@ struct BuffState {
         }
         for (const auto & buff : negative_buffs) {
             if (value[buff] > that.value[buff]) {
+                return false;
+            }
+        }
+        for (const auto & buff : ambiguous_buffs) {
+            if (value[buff] != that.value[buff]) {
                 return false;
             }
         }
@@ -128,6 +141,7 @@ struct BuffState {
             value[kBuffStrength] -= value[kBuffStrengthDown];
             value[kBuffStrengthDown] = 0;
         }
+        value[kBuffStrength] += value[kBuffDemonForm];
     }
     // convert this to string form
     std::string ToString() const {

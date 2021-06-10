@@ -510,19 +510,19 @@ int main(int argc, char ** argv) {
         //start_node.deck.AddCard(card_pommel_strike);
         //start_node.deck.AddCard(card_strike_plus);
         //start_node.deck.AddCard(card_armaments_plus);
-        start_node.deck.AddCard(card_hemokinesis);
-        start_node.deck.RemoveCard(card_strike);
-        start_node.deck.RemoveCard(card_ascenders_bane);
+        //start_node.deck.AddCard(card_demon_form);
+        //start_node.deck.RemoveCard(card_strike);
+        //start_node.deck.RemoveCard(card_ascenders_bane);
 
         //start_node.deck.RemoveCard(card_ascenders_bane.GetIndex());
         //start_node.deck.RemoveCard(card_vigilance.GetIndex());
 
         start_node.hp = start_node.max_hp * 9 / 10;
-        //tree.fight_type = kFightAct1EliteGremlinNob;
+        tree.fight_type = kFightAct1EliteGremlinNob;
         //tree.fight_type = kFightAct1EasyCultist;
         //tree.fight_type = kFightAct1EasyJawWorm;
         //tree.fight_type = kFightAct1EasyLouses;
-        tree.fight_type = kFightAct1EliteLagavulin;
+        //tree.fight_type = kFightAct1EliteLagavulin;
         //tree.fight_type = kFightTestOneLouse;
     }
 

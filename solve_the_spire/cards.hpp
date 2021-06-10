@@ -40,6 +40,8 @@ struct CardFlagStruct {
     // true if card name has "Strike"
     unsigned int strike : 1;
     unsigned int retain : 1;
+    // TODO: implement this
+    unsigned int innate : 1;
 
     unsigned int starting : 1;
     unsigned int common : 1;
