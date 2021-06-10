@@ -6,3 +6,5 @@
 **/.vs
 
 solve_the_spire/packages
+
+**/packages
