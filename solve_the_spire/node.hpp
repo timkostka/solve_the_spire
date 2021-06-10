@@ -934,7 +934,7 @@ struct Node {
         // cycle energy
         ResetEnergy();
         // reset block
-        if (kBuffBarricade) {
+        if (buff[kBuffBarricade]) {
         } else if (block > 15 && relics.calipers) {
             block -= 15;
         } else {

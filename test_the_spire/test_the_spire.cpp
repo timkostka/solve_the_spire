@@ -117,27 +117,47 @@ void AddAndPlayCard(const Card & card, Node & node, uint8_t target = 0) {
 //    ASSERT_DOUBLE_EQ(tree.remaining_mob_hp, 0);
 //}
 
-// Game(maxobj=24, turn=6, p=6.4e-05, hp=18/80, energy=3, hand={5 cards: Strike, 3xDefend, Hemokinesis}, mob0=(Gremlin Nob, 11hp, Rush, 3xStr, 1xVuln, 3xEnrage))
-TEST(TestSolver, TestFinishWithHemo) {
+//// Game(maxobj=24, turn=6, p=6.4e-05, hp=18/80, energy=3, hand={5 cards: Strike, 3xDefend, Hemokinesis}, mob0=(Gremlin Nob, 11hp, Rush, 3xStr, 1xVuln, 3xEnrage))
+//TEST(TestSolver, TestFinishWithHemo) {
+//    Node this_node = GetDefaultAttackNode();
+//    this_node.hp = 18;
+//    this_node.relics.burning_blood = 1;
+//    auto & mob = this_node.monster[0];
+//    mob.base = &base_mob_gremlin_nob;
+//    mob.hp = 11;
+//    mob.max_hp = 80;
+//    mob.last_intent[0] = 1;
+//    mob.buff[kBuffStrength] = 3;
+//    mob.buff[kBuffVulnerable] = 1;
+//    mob.buff[kBuffEnrage] = 3;
+//    this_node.hand.Clear();
+//    this_node.hand.AddCard(card_strike);
+//    this_node.hand.AddCard(card_defend, 3);
+//    this_node.hand.AddCard(card_hemokinesis);
+//    TreeStruct tree(this_node);
+//    tree.Expand();
+//    this_node.PrintTree();
+//    ASSERT_DOUBLE_EQ(tree.death_chance, 0.0);
+//    ASSERT_DOUBLE_EQ(tree.final_hp, 2.0);
+//    ASSERT_DOUBLE_EQ(tree.remaining_mob_hp, 0);
+//}
+
+// test for goblin nob fight bug
+// Game(solved, obj=32.3197, turn=1, p=0.0433, hp=72/80, hand={5 cards: 4xStrike, Defend}, mob0=(Gremlin Nob, 87hp))
+TEST(TestSolver, TestNobFightBug) {
     Node this_node = GetDefaultAttackNode();
-    this_node.hp = 18;
+    this_node.hp = 72;
+    this_node.max_hp = 80;
     this_node.relics.burning_blood = 1;
     auto & mob = this_node.monster[0];
     mob.base = &base_mob_gremlin_nob;
-    mob.hp = 11;
-    mob.max_hp = 80;
-    mob.last_intent[0] = 1;
-    mob.buff[kBuffStrength] = 3;
-    mob.buff[kBuffVulnerable] = 1;
-    mob.buff[kBuffEnrage] = 3;
+    mob.hp = 87;
+    mob.max_hp = 87;
+    mob.last_intent[0] = 0;
     this_node.hand.Clear();
-    this_node.hand.AddCard(card_strike);
-    this_node.hand.AddCard(card_defend, 3);
-    this_node.hand.AddCard(card_hemokinesis);
+    this_node.hand.AddCard(card_strike, 4);
+    this_node.hand.AddCard(card_defend, 1);
     TreeStruct tree(this_node);
     tree.Expand();
     this_node.PrintTree();
-    ASSERT_DOUBLE_EQ(tree.death_chance, 0.0);
-    ASSERT_DOUBLE_EQ(tree.final_hp, 2.0);
-    ASSERT_DOUBLE_EQ(tree.remaining_mob_hp, 0);
 }
