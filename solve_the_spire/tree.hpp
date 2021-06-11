@@ -292,7 +292,7 @@ struct TreeStruct {
             return;
         }
         // else draw all cards we can and add each as a child node
-        auto choices = node.draw_pile.node_ptr->collection.Select(to_draw);
+        auto choices = node.draw_pile.Select(to_draw);
         for (const auto & choice : choices) {
             // add new node
             Node & new_node = CreateChild(node, true);

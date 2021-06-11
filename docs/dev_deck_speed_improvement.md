@@ -12,3 +12,5 @@ I did this, and the result was a 50% increase in speed. The standard Nob fight d
 
 The new bottlenecks are FindPlayerChoices, EndTurn, DrawCards. Probably not too much we can do here, although DrawCards can be improved by using `CardCollectionPtr` instead of `CardCollection`.
 ![](.dev_deck_speed_improvement_images/new_slow_functions.png)
+
+Reworked selection of cards to draw to get time down to about 1.3 sec.

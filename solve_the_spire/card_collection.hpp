@@ -144,102 +144,103 @@ struct CardCollection {
             AddCard(c.first, c.second);
         }
     }*/
-    // return all combinations of selecting X cards at random
-    // results are returned as (probability, cards_selected, cards_left)
-    std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> Select(card_count_t count) const {
-        // TODO: move this function to CardCollectionPtr and use pointers rather than entire decks
-        // get number of results
-        std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> result;
-        card_count_t unique_card_count = (card_count_t) card.size();
-        // get number of cards
-        card_count_t card_count = total;
-        // find probability of this combination
-        double denom = ncr(card_count, count);
-        // find denominator for probabilities
-        // get number of items we can assign past this
-        std::vector<card_count_t> space_to_right(unique_card_count, 0);
-        if (unique_card_count > 0) {
-            std::size_t i = (std::size_t) unique_card_count - 1;
-            while (i > 0) {
-                --i;
-                space_to_right[i] = space_to_right[i + 1] + card[i + 1].second;
-            }
-        }
-        assert(card_count >= count);
-        // initialize first list
-        std::vector<card_count_t> item(unique_card_count, 0);
-        card_count_t left = count;
-        card_index_t active_index = 0;
-        while (left > 0) {
-            item[active_index] = std::min(left, card[active_index].second);
-            left -= item[active_index];
-            if (left) {
-                ++active_index;
-            }
-        }
-        while (true) {
-            // add this list
-            result.push_back(std::pair<double, std::pair<CardCollection, CardCollection>>());
-            auto & this_result = *result.rbegin();
-            CardCollection & selected = this_result.second.first;
-            CardCollection & remaining = this_result.second.second;
-            for (size_t i = 0; i < unique_card_count; ++i) {
-                if (item[i] > 0) {
-                    selected.AddCard(card[i].first, item[i]);
-                }
-                if (card[i].second - item[i] > 0) {
-                    remaining.AddCard(card[i].first, card[i].second - item[i]);
-                }
-            }
-            // find probability for this subset
-            double p = 1;
-            for (std::size_t i = 0; i < unique_card_count; ++i) {
-                if (item[i] > 0) {
-                    p *= ncr(card[i].second, item[i]);
-                }
-            }
-            this_result.first = p / denom;
-            // iterate
-            if (active_index == unique_card_count - 1) {
-                if (active_index == 0) {
-                    return result;
-                }
-                card_index_t need_to_place = item[active_index];
-                item[active_index] = 0;
-                --active_index;
-                while (true) {
-                    if (item[active_index] > 0) {
-                        --item[active_index];
-                        ++need_to_place;
-                        if (space_to_right[active_index] >= need_to_place) {
-                            break;
-                        }
-                        need_to_place += item[active_index];
-                        item[active_index] = 0;
-                        if (active_index == 0) {
-                            return result;
-                        }
-                    }
-                    if (active_index == 0) {
-                        return result;
-                    }
-                    --active_index;
-                }
-                assert(active_index != 255);
-                while (need_to_place > 0) {
-                    ++active_index;
-                    item[active_index] = std::min(need_to_place, card[active_index].second);
-                    assert(item[active_index] > 0);
-                    need_to_place -= item[active_index];
-                }
-            } else {
-                assert(item[active_index] > 0);
-                --item[active_index];
-                ++active_index;
-                ++item[active_index];
-            }
-        }
-    }
+
+    //// return all combinations of selecting X cards at random
+    //// results are returned as (probability, cards_selected, cards_left)
+    //std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> Select(card_count_t count) const {
+    //    // TODO: move this function to CardCollectionPtr and use pointers rather than entire decks
+    //    // get number of results
+    //    std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> result;
+    //    card_count_t unique_card_count = (card_count_t) card.size();
+    //    // get number of cards
+    //    card_count_t card_count = total;
+    //    // find probability of this combination
+    //    double denom = ncr(card_count, count);
+    //    // find denominator for probabilities
+    //    // get number of items we can assign past this
+    //    std::vector<card_count_t> space_to_right(unique_card_count, 0);
+    //    if (unique_card_count > 0) {
+    //        std::size_t i = (std::size_t) unique_card_count - 1;
+    //        while (i > 0) {
+    //            --i;
+    //            space_to_right[i] = space_to_right[i + 1] + card[i + 1].second;
+    //        }
+    //    }
+    //    assert(card_count >= count);
+    //    // initialize first list
+    //    std::vector<card_count_t> item(unique_card_count, 0);
+    //    card_count_t left = count;
+    //    card_index_t active_index = 0;
+    //    while (left > 0) {
+    //        item[active_index] = std::min(left, card[active_index].second);
+    //        left -= item[active_index];
+    //        if (left) {
+    //            ++active_index;
+    //        }
+    //    }
+    //    while (true) {
+    //        // add this list
+    //        result.push_back(std::pair<double, std::pair<CardCollection, CardCollection>>());
+    //        auto & this_result = *result.rbegin();
+    //        CardCollection & selected = this_result.second.first;
+    //        CardCollection & remaining = this_result.second.second;
+    //        for (size_t i = 0; i < unique_card_count; ++i) {
+    //            if (item[i] > 0) {
+    //                selected.AddCard(card[i].first, item[i]);
+    //            }
+    //            if (card[i].second - item[i] > 0) {
+    //                remaining.AddCard(card[i].first, card[i].second - item[i]);
+    //            }
+    //        }
+    //        // find probability for this subset
+    //        double p = 1;
+    //        for (std::size_t i = 0; i < unique_card_count; ++i) {
+    //            if (item[i] > 0) {
+    //                p *= ncr(card[i].second, item[i]);
+    //            }
+    //        }
+    //        this_result.first = p / denom;
+    //        // iterate
+    //        if (active_index == unique_card_count - 1) {
+    //            if (active_index == 0) {
+    //                return result;
+    //            }
+    //            card_index_t need_to_place = item[active_index];
+    //            item[active_index] = 0;
+    //            --active_index;
+    //            while (true) {
+    //                if (item[active_index] > 0) {
+    //                    --item[active_index];
+    //                    ++need_to_place;
+    //                    if (space_to_right[active_index] >= need_to_place) {
+    //                        break;
+    //                    }
+    //                    need_to_place += item[active_index];
+    //                    item[active_index] = 0;
+    //                    if (active_index == 0) {
+    //                        return result;
+    //                    }
+    //                }
+    //                if (active_index == 0) {
+    //                    return result;
+    //                }
+    //                --active_index;
+    //            }
+    //            assert(active_index != 255);
+    //            while (need_to_place > 0) {
+    //                ++active_index;
+    //                item[active_index] = std::min(need_to_place, card[active_index].second);
+    //                assert(item[active_index] > 0);
+    //                need_to_place -= item[active_index];
+    //            }
+    //        } else {
+    //            assert(item[active_index] > 0);
+    //            --item[active_index];
+    //            ++active_index;
+    //            ++item[active_index];
+    //        }
+    //    }
+    //}
     // return the number of unique subsets
     std::size_t CountUniqueSubsets() const {
         std::size_t result = 1;
