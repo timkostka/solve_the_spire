@@ -7,3 +7,8 @@ Oops, I'm calling stuff when I don't need to (`burn_count = 0`):
 
 I can probably do this way more efficiently by avoid converting beween CardCollection and CardCollectionPtr except at the start and end of the function, and only if needed.
 ![](.dev_deck_speed_improvement_images/inefficient_card_calculations.png)
+
+I did this, and the result was a 50% increase in speed. The standard Nob fight dropped from about 3.0 seconds to 1.5 seconds.
+
+The new bottlenecks are FindPlayerChoices, EndTurn, DrawCards. Probably not too much we can do here, although DrawCards can be improved by using `CardCollectionPtr` instead of `CardCollection`.
+![](.dev_deck_speed_improvement_images/new_slow_functions.png)
