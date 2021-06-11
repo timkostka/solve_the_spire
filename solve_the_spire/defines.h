@@ -48,3 +48,7 @@ constexpr bool verify_all_expansions = false;
 
 // if true, will treat an upgraded card as strictly better than a non-upgraded one
 constexpr bool upgrades_strictly_better = true;
+
+// if true, will make choices to stay alive even if death is inevitable and more
+// damage to the mob could be done
+constexpr bool always_avoid_dying = false;

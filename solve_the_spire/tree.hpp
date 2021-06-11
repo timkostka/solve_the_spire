@@ -80,7 +80,8 @@ std::list<MobLayout> GenerateAllMobs(FightEnum fight_type) {
         base_mob[0] = &base_mob_gremlin_nob;
     } else {
         // unknown fight type
-        assert(false);
+        printf("ERROR: unknown fight type");
+        exit(1);
     }
     // find options for all mobs
     std::vector<std::pair<double, Monster>> mob[MAX_MOBS_PER_NODE];
@@ -98,7 +99,6 @@ std::list<MobLayout> GenerateAllMobs(FightEnum fight_type) {
         // add this combination
         result.push_back(MobLayout());
         MobLayout & layout = *result.rbegin();
-        //layout.probability = 1.0;
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             layout.probability *= mob[i][index[i]].first;
             layout.mob[i] = mob[i][index[i]].second;
@@ -292,7 +292,7 @@ struct TreeStruct {
             return;
         }
         // else draw all cards we can and add each as a child node
-        auto choices = node.draw_pile.ptr->Select(to_draw);
+        auto choices = node.draw_pile.node_ptr->collection.Select(to_draw);
         for (const auto & choice : choices) {
             // add new node
             Node & new_node = CreateChild(node, true);
@@ -302,11 +302,8 @@ struct TreeStruct {
                 new_node.pending_action[0].arg[0] -= to_draw;
             }
             new_node.probability *= choice.first;
-            new_node.hand.AddCard(choice.second.first);
+            new_node.hand.AddDeck(choice.second.first);
             new_node.draw_pile = choice.second.second;
-            //if (new_node.cards_to_draw == 0) {
-                //new_node.player_choice = true;
-            //}
             new_node.child.clear();
         }
     }
@@ -324,7 +321,6 @@ struct TreeStruct {
         }
         // if this node has yet to be expanded, delete it from the optional list
         if (update_terminal && !node.IsTerminal() && node.child.empty()) {
-            // TODO: for debug only
             auto it = optional_nodes.find(&node);
             if (it == optional_nodes.end()) {
                 printf("ERROR: optional node is missing\n");
@@ -433,9 +429,10 @@ struct TreeStruct {
                     ending_node.push_back(&end_turn_node);
                 }
                 // play all possible unique cards
-                for (std::size_t i = 0; i < this_node.hand.ptr->card.size(); ++i) {
+                for (auto & deck_item : this_node.hand) {
                     // alias the card
-                    auto & card = *card_map[this_node.hand.ptr->card[i].first];
+                    const card_index_t & card_index = deck_item.first;
+                    const Card & card = *card_map[card_index];
                     // skip this card if it's unplayable or too expensive
                     if (card.flag.unplayable || card.cost > this_node.energy) {
                         continue;
@@ -449,10 +446,10 @@ struct TreeStruct {
                                 continue;
                             }
                             Node & new_node = CreateChild(this_node, false);
-                            card_index_t index = this_node.hand.ptr->card[i].first;
-                            const Card & card = *card_map[index];
-                            new_node.hand.RemoveCard(index);
-                            new_node.PlayCard(index, m);
+                            //card_index_t index = deck_item.first;
+                            //const Card & card = *card_map[index];
+                            new_node.hand.RemoveCard(card_index);
+                            new_node.PlayCard(card_index, m);
                             new_node.SortMobs();
                             // if this is the best possible objective,
                             // don't process any further choices
@@ -465,9 +462,9 @@ struct TreeStruct {
                             // add to exhaust or discard pile
                             if (!new_node.battle_done) {
                                 if (card.flag.exhausts) {
-                                    new_node.exhaust_pile.AddCard(index);
+                                    new_node.exhaust_pile.AddCard(card_index);
                                 } else {
-                                    new_node.discard_pile.AddCard(index);
+                                    new_node.discard_pile.AddCard(card_index);
                                 }
                             }
                             // add new decision point
@@ -481,13 +478,22 @@ struct TreeStruct {
                         assert(!card.flag.targeted);
                         assert(&card == &card_armaments);
                         // play on each card that has an upgraded version
-                        for (uint8_t c = 0; c < this_node.hand.ptr->card.size(); ++c) {
-                            const Card & card = *card_map[this_node.hand.ptr->card[c].first];
+                        const auto & deck = this_node.hand.node_ptr->collection.card;
+                        for (card_index_t c = 0; c < deck.size(); ++c) {
+                            const card_index_t & other_card_index = deck[c].first;
+                            const Card & other_card = *card_map[other_card_index];
+                            // cannot target itself
+                            if (other_card_index == card_index && deck_item.second == 1) {
+                                continue;
+                            }
+                            // target all cards that can be upgraded
                             if (card.upgraded_version != nullptr) {
                                 Node & new_node = CreateChild(this_node, false);
-                                card_index_t index = this_node.hand.ptr->card[i].first;
-                                new_node.hand.RemoveCard(index);
-                                new_node.PlayCard(index, c);
+                                new_node.hand.RemoveCard(card_index);
+                                assert(new_node.hand.CountCard(other_card_index) > 0);
+                                new_node.PlayCard(
+                                    card_index,
+                                    new_node.hand.GetLocalIndex(other_card_index));
                                 new_node.SortMobs();
                                 // if this is the best possible objective,
                                 // don't process any further choices
@@ -499,9 +505,9 @@ struct TreeStruct {
                                 }
                                 // add to exhaust or discard pile
                                 if (card.flag.exhausts) {
-                                    new_node.exhaust_pile.AddCard(index);
+                                    new_node.exhaust_pile.AddCard(card_index);
                                 } else {
-                                    new_node.discard_pile.AddCard(index);
+                                    new_node.discard_pile.AddCard(card_index);
                                 }
                                 // add new decision point
                                 if (new_node.IsBattleDone() || new_node.HasPendingActions()) {
@@ -513,9 +519,8 @@ struct TreeStruct {
                         }
                         // play on nothing
                         Node & new_node = CreateChild(this_node, false);
-                        card_index_t index = this_node.hand.ptr->card[i].first;
-                        new_node.hand.RemoveCard(index);
-                        new_node.PlayCard(index, 255);
+                        new_node.hand.RemoveCard(card_index);
+                        new_node.PlayCard(card_index, -1);
                         new_node.SortMobs();
                         // if this is the best possible objective,
                         // don't process any further choices
@@ -527,9 +532,9 @@ struct TreeStruct {
                         }
                         // add to exhaust or discard pile
                         if (card.flag.exhausts) {
-                            new_node.exhaust_pile.AddCard(index);
+                            new_node.exhaust_pile.AddCard(card_index);
                         } else {
-                            new_node.discard_pile.AddCard(index);
+                            new_node.discard_pile.AddCard(card_index);
                         }
                         // add new decision point
                         if (new_node.IsBattleDone() || new_node.HasPendingActions()) {
@@ -540,9 +545,8 @@ struct TreeStruct {
                     } else {
                         Node & new_node = CreateChild(this_node, false);
                         new_node.layer = top_node.layer + 1;
-                        card_index_t index = this_node.hand.ptr->card[i].first;
-                        new_node.hand.RemoveCard(index);
-                        new_node.PlayCard(index);
+                        new_node.hand.RemoveCard(card_index);
+                        new_node.PlayCard(card_index);
                         new_node.SortMobs();
                         // if this is the best possible objective,
                         // don't process any further choices
@@ -553,9 +557,9 @@ struct TreeStruct {
                             return;
                         }
                         if (card.flag.exhausts) {
-                            new_node.exhaust_pile.AddCard(index);
+                            new_node.exhaust_pile.AddCard(card_index);
                         } else {
-                            new_node.discard_pile.AddCard(index);
+                            new_node.discard_pile.AddCard(card_index);
                         }
                         if (new_node.IsBattleDone()) {
                             ending_node.push_back(&new_node);
@@ -627,9 +631,9 @@ struct TreeStruct {
         // we should have eliminated all but one dead node
         assert(dead_node_count <= 1);
         // if options exist where we don't die, mark options where we die as bad
-        // TODO: revisit this decision to honor max final objective where mob HP left matters
-        if (false && good_node_count > dead_node_count &&
-            dead_node_count > 0) {
+        if (always_avoid_dying &&
+                good_node_count > dead_node_count &&
+                dead_node_count > 0) {
             for (std::size_t i = 0; i < ending_node.size(); ++i) {
                 Node & node_i = *ending_node[i];
                 if (bad_node[i]) {
@@ -858,13 +862,13 @@ struct TreeStruct {
                 // if (node.cards_to_draw == 0 && parent.cards_to_draw > 0) {
                 if (node.pending_action[0].type != kActionDrawCards &&
                     parent.pending_action[0].type == kActionDrawCards) {
-                    for (auto & item : node.hand.ptr->card) {
-                        if (cards_drawn[turn_index].find(item.first) ==
+                    for (auto & deck_item : node.hand) {
+                        if (cards_drawn[turn_index].find(deck_item.first) ==
                             cards_drawn[turn_index].end()) {
-                            cards_drawn[turn_index][item.first] = 0.0;
+                            cards_drawn[turn_index][deck_item.first] = 0.0;
                         }
-                        cards_drawn[turn_index][item.first] += p * item.second;
-                        card_indices.insert(item.first);
+                        cards_drawn[turn_index][deck_item.first] += p * deck_item.second;
+                        card_indices.insert(deck_item.first);
                     }
                 }
                 // count cards played
@@ -1097,9 +1101,7 @@ struct TreeStruct {
                     node.tree_solved != child.tree_solved) {
                     node.composite_objective = child.composite_objective;
                     node.tree_solved = child.tree_solved;
-                    // prune solved nodes
                     DeleteChildren(node);
-                    // update parent
                     node_ptr = node.parent;
                     continue;
                 }
@@ -1114,7 +1116,6 @@ struct TreeStruct {
                 if (node.composite_objective != x || node.tree_solved != solved) {
                     node.composite_objective = x;
                     node.tree_solved = solved;
-                    // TODO: prune solved nodes
                     DeleteChildren(node);
                     node_ptr = node.parent;
                     continue;
@@ -1165,7 +1166,6 @@ struct TreeStruct {
                 node.tree_solved = true;
                 assert(child.composite_objective == max_solved_objective);
                 node.composite_objective = max_solved_objective;
-                // TODO: prune solved nodes
                 DeleteChildren(node);
                 node_ptr = node.parent;
                 continue;
@@ -1211,7 +1211,6 @@ struct TreeStruct {
             if (node.tree_solved ||
                 max_unsolved_objective < node.composite_objective) {
                 node.composite_objective = x;
-                // TODO: prune tree
                 DeleteChildren(node);
                 node_ptr = node.parent;
                 continue;
@@ -1406,47 +1405,15 @@ struct TreeStruct {
                 }
                 continue;
             }
-            // if just starting, do start of battle initialization
-            //if (this_node.turn == 0) {
-            //    this_node.player_choice = false;
-            //    GenerateBattle(this_node);
-            //    UpdateTree(&this_node);
-            //    continue;
-            //}
-            // if intents need generated, generate them
-            //if (this_node.generate_mob_intents) {
-            //    GenerateMobIntents(this_node);
-            //    UpdateTree(&this_node);
-            //    continue;
-            //}
-            // if cards need drawn, draw them
-            //if (this_node.cards_to_draw) {
-            //    DrawCards(this_node);
-            //    UpdateTree(&this_node);
-            //    continue;
-            //}
-            // else player can play a card or end turn
-            //if (iteration == 117) {
-            //    this_node.PrintTree();
-            //    top_node_ptr->PrintTree();
-            //    PrintTreeToFile("tree_before.txt");
-            //}
+            // play a card or end the turn
+            //this_node.PrintTree();
             FindPlayerChoices(this_node);
             //this_node.PrintTree();
-            //if (iteration == 117) {
-            //    this_node.PrintTree();
-            //    PrintTreeToFile("tree_middle.txt");
-            //}
             if (this_node.parent != nullptr) {
                 //this_node.parent->PrintTree();
                 UpdateTree(this_node.parent);
                 //this_node.parent->PrintTree();
             }
-            //if (iteration == 117) {
-            //    PrintTreeToFile("tree_after.txt");
-            //    this_node.PrintTree();
-            //    top_node_ptr->PrintTree();
-            //}
         }
         // tree should now be solved
         const double duration = (double) (clock() - start_clock) / CLOCKS_PER_SEC;

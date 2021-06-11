@@ -279,9 +279,9 @@ void CompareUpgrades(const Node & top_node) {
 
     // add base cards to upgrade
     upgrade_list.push_back(-1);
-    for (const auto & card : top_node.deck.ptr->card) {
-        if (card_map[card.first]->upgraded_version != nullptr) {
-            upgrade_list.push_back(card.first);
+    for (const auto & deck_item : top_node.deck) {
+        if (card_map[deck_item.first]->upgraded_version != nullptr) {
+            upgrade_list.push_back(deck_item.first);
         }
     }
 
@@ -321,42 +321,42 @@ void CompareUpgrades(const Node & top_node) {
 // populate deck maps
 void PopulateDecks() {
 
-    CardCollection deck;
+    CardCollectionPtr deck;
 
     deck.Clear();
     deck.AddCard(card_strike, 5);
     deck.AddCard(card_defend, 4);
     deck.AddCard(card_bash, 1);
-    deck_map["starting_ironclad"] = *(new CardCollection(deck));
+    deck_map["starting_ironclad"] = deck;
     deck.AddCard(card_ascenders_bane, 1);
-    deck_map["starting_ironclad_cursed"] = *(new CardCollection(deck));
+    deck_map["starting_ironclad_cursed"] = deck;
 
     deck.Clear();
     deck.AddCard(card_strike, 5);
     deck.AddCard(card_defend, 5);
     deck.AddCard(card_survivor, 1);
     deck.AddCard(card_neutralize, 1);
-    deck_map["starting_silent"] = *(new CardCollection(deck));
+    deck_map["starting_silent"] = deck;
     deck.AddCard(card_ascenders_bane, 1);
-    deck_map["starting_silent_cursed"] = *(new CardCollection(deck));
+    deck_map["starting_silent_cursed"] = deck;
 
     deck.Clear();
     deck.AddCard(card_strike, 4);
     deck.AddCard(card_defend, 4);
     deck.AddCard(card_zap, 1);
     deck.AddCard(card_dualcast, 1);
-    deck_map["starting_defect"] = *(new CardCollection(deck));
+    deck_map["starting_defect"] = deck;
     deck.AddCard(card_ascenders_bane, 1);
-    deck_map["starting_defect_cursed"] = *(new CardCollection(deck));
+    deck_map["starting_defect_cursed"] = deck;
 
     deck.Clear();
     deck.AddCard(card_strike, 4);
     deck.AddCard(card_defend, 4);
     deck.AddCard(card_eruption, 1);
     deck.AddCard(card_vigilance, 1);
-    deck_map["starting_watcher"] = *(new CardCollection(deck));
+    deck_map["starting_watcher"] = deck;
     deck.AddCard(card_ascenders_bane, 1);
-    deck_map["starting_watcher_cursed"] = *(new CardCollection(deck));
+    deck_map["starting_watcher_cursed"] = deck;
 
 }
 
@@ -431,13 +431,10 @@ bool ProcessArgument(TreeStruct & tree, std::string original_argument) {
                 node.relics = ParseRelics(character_map[value].relics);
                 node.max_hp = character_map[value].max_hp;
                 node.hp = node.max_hp * 9 / 10;
-                // TODO
                 break;
             }
         }
         return found;
-    //} else if (name == "profile") {
-    //    profile = true;
     } else if (name == "relic" || name == "relics") {
         CombineRelic(node.relics, ParseRelics(value));
     } else if (name == "fight") {

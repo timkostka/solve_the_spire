@@ -1,7 +1,5 @@
 #pragma once
 
-#include "cards.hpp"
-
 #include <cmath>
 #include <utility>
 #include <cassert>
@@ -10,6 +8,8 @@
 #include <sstream>
 #include <string>
 #include <iterator>
+
+#include "cards.hpp"
 
 using std::vector;
 using std::string;
@@ -97,6 +97,18 @@ struct CardCollection {
         total -= count;
     }
     // add a card
+    //void AddCard(card_index_t index) {
+    //    auto it = std::lower_bound(
+    //        card.begin(), card.end(), deck_item_t(index, 0));
+    //    if (it == card.end()) {
+    //        card.insert(card.end(), deck_item_t(index, 1));
+    //    } else if (it->first == index) {
+    //        it->second += 1;
+    //    } else {
+    //        card.insert(it, deck_item_t(index, 1));
+    //    }
+    //    total += 1;
+    //}
     void AddCard(card_index_t index, card_count_t count = 1) {
         //card.reserve(card.size() + count);
         auto it = std::lower_bound(
@@ -111,7 +123,7 @@ struct CardCollection {
         total += count;
     }
     // add a card
-    void AddCard(const Card & c, card_count_t count = 1) {
+    /*void AddCard(const Card & c, card_count_t count = 1) {
         AddCard(c.GetIndex(), count);
     }
     // add a card by string
@@ -124,17 +136,18 @@ struct CardCollection {
             }
         };
         std::cout << "ERROR: unknown card name" << std::endl;
-        assert(false);
+        exit(1);
     }
     // add a card collection
     void AddCard(const CardCollection & that) {
         for (auto & c : that.card) {
             AddCard(c.first, c.second);
         }
-    }
+    }*/
     // return all combinations of selecting X cards at random
     // results are returned as (probability, cards_selected, cards_left)
     std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> Select(card_count_t count) const {
+        // TODO: move this function to CardCollectionPtr and use pointers rather than entire decks
         // get number of results
         std::vector<std::pair<double, std::pair<CardCollection, CardCollection>>> result;
         card_count_t unique_card_count = (card_count_t) card.size();

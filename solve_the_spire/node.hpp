@@ -277,7 +277,6 @@ struct Node {
         assert(child.empty());
         tree_solved = true;
         composite_objective = hp;
-        // TODO: if we die, ensure we choose path that lowers the mob HP the most
         if (hp == 0) {
             for (auto & mob : monster) {
                 if (mob.Exists()) {
@@ -292,14 +291,11 @@ struct Node {
     void InitializeStartingNode() {
         assert(hp > 0);
         assert(max_hp >= hp);
-        //assert(!deck.IsEmpty());
         // TODO: populate last_card_attack/skill_matters based on cards in deck
         stance = kStanceNone;
         discard_pile.Clear();
         hand.Clear();
         exhaust_pile.Clear();
-        // TODO: is deck shuffled at start of battle?
-        //draw_pile.Clear();
         draw_pile = deck;
         last_card_attack = false;
         last_card_skill = false;
@@ -810,39 +806,37 @@ struct Node {
             return;
         }
         // exhaust all ethereal cards
-        for (std::size_t i = 0; i < hand.ptr->card.size(); ++i) {
-            const Card & card = *card_map[hand.ptr->card[i].first];
-            if (card.flag.ethereal) {
-                exhaust_pile.AddCard(
-                    hand.ptr->card[i].first,
-                    hand.ptr->card[i].second);
-                hand.RemoveCard(
-                    hand.ptr->card[i].first,
-                    hand.ptr->card[i].second);
-                --i;
+        {
+            auto & original_hand = hand.node_ptr->collection.card;
+            for (auto & deck_item : original_hand) {
+                const Card & card = *card_map[deck_item.first];
+                if (card.flag.ethereal) {
+                    exhaust_pile.AddCard(deck_item);
+                    hand.RemoveCard(deck_item);
+                }
             }
         }
         // take burn damage and discard burns
         {
-            card_count_t burn_count = hand.CountCard(card_burn.GetIndex());
+            static card_index_t burn_card_index = card_burn.GetIndex();
+            card_count_t burn_count = hand.CountCard(burn_card_index);
             for (card_count_t i = 0; i < burn_count; ++i) {
                 TakeDamage(2);
             }
             if (burn_count) {
-                discard_pile.AddCard(card_burn.GetIndex(), burn_count);
-                hand.RemoveCard(card_burn.GetIndex(), burn_count);
+                discard_pile.AddCard(burn_card_index, burn_count);
+                hand.RemoveCard(burn_card_index, burn_count);
             }
         }
         // discard all remaining cards except those we retain
         if (!relics.runic_pyramid) {
             CardCollectionPtr new_hand;
-            new_hand.Clear();
-            for (auto & item : hand.ptr->card) {
-                const Card & card = *card_map[item.first];
+            for (auto & deck_item : hand) {
+                const Card & card = *card_map[deck_item.first];
                 if (card.flag.retain) {
-                    new_hand.AddCard(item.first, item.second);
+                    new_hand.AddCard(deck_item.first, deck_item.second);
                 } else {
-                    discard_pile.AddCard(item.first, item.second);
+                    discard_pile.AddCard(deck_item.first, deck_item.second);
                 }
             }
             // remove them from hand
@@ -973,19 +967,19 @@ struct Node {
     // return the number of "Strike" cards present
     uint16_t CountStrikeCards() {
         uint16_t count = 0;
-        for (auto & card : draw_pile.ptr->card) {
-            if (card_map[card.first]->flag.strike) {
-                count += card.second;
+        for (auto & deck_item : draw_pile) {
+            if (card_map[deck_item.first]->flag.strike) {
+                count += deck_item.second;
             }
         }
-        for (auto & card : hand.ptr->card) {
-            if (card_map[card.first]->flag.strike) {
-                count += card.second;
+        for (auto & deck_item : draw_pile) {
+            if (card_map[deck_item.first]->flag.strike) {
+                count += deck_item.second;
             }
         }
-        for (auto & card : discard_pile.ptr->card) {
-            if (card_map[card.first]->flag.strike) {
-                count += card.second;
+        for (auto & deck_item : draw_pile) {
+            if (card_map[deck_item.first]->flag.strike) {
+                count += deck_item.second;
             }
         }
         return count;
@@ -1037,8 +1031,9 @@ struct Node {
                 case kUpgradeOneCardInHand:
                 {
                     // if valid target
-                    if (hand.ptr->card.size() > target) {
-                        card_index_t card_index = hand.ptr->card[target].first;
+                    if (hand.node_ptr->collection.card.size() > target) {
+                        card_index_t card_index =
+                            hand.node_ptr->collection.card[target].first;
                         // if upgraded version exists
                         if (card_map[card_index]->upgraded_version != nullptr) {
                             card_index_t new_index =
@@ -1051,13 +1046,13 @@ struct Node {
                 }
                 case kUpgradeAllCardsInHand:
                 {
-                    CardCollection new_hand;
-                    for (auto & item : hand.ptr->card) {
-                        card_index_t card_index = item.first;
-                        if (card_map[item.first]->upgraded_version != nullptr) {
-                            card_index = card_map[item.first]->upgraded_version->GetIndex();
+                    CardCollectionPtr new_hand;
+                    for (auto & deck_item : hand) {
+                        card_index_t card_index = deck_item.first;
+                        if (card_map[card_index]->upgraded_version != nullptr) {
+                            card_index = card_map[card_index]->upgraded_version->GetIndex();
                         }
-                        new_hand.AddCard(card_index, item.second);
+                        new_hand.AddCard(card_index, deck_item.second);
                     }
                     hand = new_hand;
                     break;
@@ -1347,14 +1342,12 @@ struct Node {
                             break;
                         }
                     }
-                    // TODO: prevent these nodes from being expanded
                     break;
                 }
                 default:
                 {
                     printf("ERROR: unexpected action type\n");
                     exit(1);
-                    assert(false);
                 }
             }
         }
