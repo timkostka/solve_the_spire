@@ -111,8 +111,37 @@ TEST(TestSolver, TestHemoSuicide) {
     this_node.hand.AddCard(card_defend, 2);
     TreeStruct tree(this_node);
     tree.Expand();
-    this_node.PrintTree();
     ASSERT_DOUBLE_EQ(tree.death_chance, 0.0);
     ASSERT_DOUBLE_EQ(tree.final_hp, 2.0);
     ASSERT_DOUBLE_EQ(tree.remaining_mob_hp, 0);
+}
+
+// ensure offering is not used if not needed
+TEST(TestSolver, TestOffering1) {
+    Node this_node = GetDefaultAttackNode();
+    auto & mob = this_node.monster[0];
+    mob.hp = 12;
+    this_node.hand.Clear();
+    this_node.hand.AddCard(card_offering);
+    this_node.hand.AddCard(card_strike, 2);
+    this_node.draw_pile.AddCard(card_wound, 5);
+    TreeStruct tree(this_node);
+    tree.Expand();
+    this_node.PrintTree();
+    ASSERT_DOUBLE_EQ(tree.final_hp, 100.0);
+}
+
+// ensure offering is used if needed
+TEST(TestSolver, TestOffering2) {
+    Node this_node = GetDefaultAttackNode();
+    auto & mob = this_node.monster[0];
+    mob.hp = 12;
+    this_node.hand.Clear();
+    this_node.hand.AddCard(card_offering);
+    this_node.hand.AddCard(card_wound, 2);
+    this_node.draw_pile.AddCard(card_strike, 5);
+    TreeStruct tree(this_node);
+    tree.Expand();
+    this_node.PrintTree();
+    ASSERT_DOUBLE_EQ(tree.final_hp, 94.0);
 }

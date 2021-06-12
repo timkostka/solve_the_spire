@@ -433,6 +433,9 @@ struct TreeStruct {
                     // alias the card
                     const card_index_t & card_index = deck_item.first;
                     const Card & card = *card_map[card_index];
+                    if (&card == &card_offering) {
+                        printf("");
+                    }
                     // skip this card if it's unplayable or too expensive
                     if (card.flag.unplayable || card.cost > this_node.energy) {
                         continue;
@@ -561,7 +564,7 @@ struct TreeStruct {
                         } else {
                             new_node.discard_pile.AddCard(card_index);
                         }
-                        if (new_node.IsBattleDone()) {
+                        if (new_node.IsBattleDone() || new_node.HasPendingActions()) {
                             ending_node.push_back(&new_node);
                         } else {
                             new_decision_nodes.push_back(&new_node);

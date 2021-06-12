@@ -481,7 +481,6 @@ int main(int argc, char ** argv) {
     start_node.max_hp = 0;
     start_node.deck.Clear();
     start_node.relics = {0};
-    //start_node.fight_type = kFightNone;
 
     TreeStruct tree(start_node);
 
@@ -508,6 +507,7 @@ int main(int argc, char ** argv) {
         //start_node.deck.AddCard(card_strike_plus);
         //start_node.deck.AddCard(card_armaments_plus);
         //start_node.deck.AddCard(card_demon_form);
+        //start_node.deck.AddCard(card_offering);
         //start_node.deck.RemoveCard(card_strike);
         //start_node.deck.RemoveCard(card_ascenders_bane);
 
