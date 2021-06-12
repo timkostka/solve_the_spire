@@ -493,7 +493,7 @@ int main(int argc, char ** argv) {
             }
         }
     } else {
-        ProcessArgument(tree, "--character=ironclad");
+        ProcessArgument(tree, "--character=silent");
         ProcessArgument(tree, "--fight=gremlin_nob");
         //ProcessArgument(start_node, "--character=silent");
         //ProcessArgument(start_node, "--character=defect");
@@ -508,6 +508,7 @@ int main(int argc, char ** argv) {
         //start_node.deck.AddCard(card_armaments_plus);
         //start_node.deck.AddCard(card_demon_form);
         //start_node.deck.AddCard(card_offering);
+        //start_node.deck.AddCard(card_sucker_punch);
         //start_node.deck.RemoveCard(card_strike);
         //start_node.deck.RemoveCard(card_ascenders_bane);
 
@@ -519,7 +520,7 @@ int main(int argc, char ** argv) {
         //tree.fight_type = kFightAct1EasyCultist;
         //tree.fight_type = kFightAct1EasyJawWorm;
         //tree.fight_type = kFightAct1EasyLouses;
-        //tree.fight_type = kFightAct1EliteLagavulin;
+        tree.fight_type = kFightAct1EliteLagavulin;
         //tree.fight_type = kFightTestOneLouse;
     }
 

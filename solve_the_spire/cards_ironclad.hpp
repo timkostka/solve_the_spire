@@ -381,7 +381,6 @@ const Card card_brutality = {
 
 // corruption
 
-// demon form
 const Card card_demon_form_plus = {
     "Demon Form+", 3, 3, nullptr,
     {.power = 1, .rare = 1, .ironclad = 1},

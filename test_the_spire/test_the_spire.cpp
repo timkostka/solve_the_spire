@@ -127,7 +127,6 @@ TEST(TestSolver, TestOffering1) {
     this_node.draw_pile.AddCard(card_wound, 5);
     TreeStruct tree(this_node);
     tree.Expand();
-    this_node.PrintTree();
     ASSERT_DOUBLE_EQ(tree.final_hp, 100.0);
 }
 
@@ -142,6 +141,43 @@ TEST(TestSolver, TestOffering2) {
     this_node.draw_pile.AddCard(card_strike, 5);
     TreeStruct tree(this_node);
     tree.Expand();
-    this_node.PrintTree();
     ASSERT_DOUBLE_EQ(tree.final_hp, 94.0);
+}
+
+// ensure armaments is used when needed
+TEST(TestSolver, TestArmaments) {
+    Node this_node = GetDefaultAttackNode();
+    auto & mob = this_node.monster[0];
+    mob.hp = 18;
+    this_node.hand.Clear();
+    this_node.hand.AddCard(card_armaments, 1);
+    this_node.hand.AddCard(card_strike, 1);
+    TreeStruct tree(this_node);
+    tree.Expand();
+    this_node.PrintTree();
+    ASSERT_DOUBLE_EQ(tree.final_hp, 95.0);
+}
+
+// test noxious fumes is working correctly
+TEST(TestCards, TestNoxiousFumes) {
+    Node this_node = GetDefaultAttackNode();
+    auto & mob = this_node.monster[0];
+    this_node.PlayCard(card_noxious_fumes.GetIndex());
+    this_node.EndTurn();
+    ASSERT_EQ(mob.buff[kBuffPoison], 1);
+    ASSERT_EQ(mob.hp, 100 - 2);
+    this_node.EndTurn();
+    ASSERT_EQ(mob.buff[kBuffPoison], 2);
+    ASSERT_EQ(mob.hp, 100 - 2 - 3);
+}
+
+// test noxious fumes is working correctly
+TEST(TestCards, TestBane) {
+    Node this_node = GetDefaultAttackNode();
+    auto & mob = this_node.monster[0];
+    this_node.PlayCard(card_bane.GetIndex());
+    ASSERT_EQ(mob.hp, 100 - 7);
+    mob.buff[kBuffPoison] = 1;
+    this_node.PlayCard(card_bane.GetIndex());
+    ASSERT_EQ(mob.hp, 100 - 7 * 3);
 }

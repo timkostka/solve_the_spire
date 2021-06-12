@@ -132,27 +132,6 @@ const Card card_ascenders_bane = {
     {.curse = 1, .unplayable = 1, .ethereal = 1},
     {{kActionNone}}};
 
-// starting silent cards
-
-const Card card_neutralize_plus = {
-    "Neutralize+", 0, 0, nullptr,
-    {.attack = 1, .targeted = 1, .starting = 1, .silent = 1},
-    {{kActionAttack, 4, 1}, {kActionDebuff, kBuffWeak, 2}, {kActionNone}}};
-const Card card_neutralize = {
-    "Neutralize", 0, 0, &card_neutralize_plus,
-    {.attack = 1, .targeted = 1, .starting = 1, .silent = 1},
-    {{kActionAttack, 3, 1}, {kActionDebuff, kBuffWeak, 1}, {kActionNone}}};
-
-// TODO: add discard
-const Card card_survivor_plus = {
-    "Survivor+", 1, 1, nullptr,
-    {.skill = 1, .starting = 1, .silent = 1},
-    {{kActionBlock, 11, 1}, {kActionNone}}};
-const Card card_survivor = {
-    "Survivor", 1, 1, & card_survivor_plus,
-    {.skill = 1, .starting = 1, .silent = 1},
-    {{kActionBlock, 8, 1}, {kActionNone}}};
-
 // starting defect cards
 
 const Card card_zap_plus = {
@@ -382,3 +361,4 @@ const Card card_tranquility = {
 #include "cards_status.hpp"
 #include "cards_colorless.hpp"
 #include "cards_ironclad.hpp"
+#include "cards_silent.hpp"

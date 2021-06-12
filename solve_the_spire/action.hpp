@@ -19,7 +19,12 @@ enum ActionType : uint8_t {
     kActionGenerateMobIntents,
     // attack a single enemy
     // first argument is attack amount
+    // second argument is number of attacks
     kActionAttack,
+    // attack a single enemy if it's poisoned
+    // first argument is attack amount
+    // second argument is number of attacks
+    kActionAttackIfPoisoned,
     // attack a single enemy one time
     // first argument is base amount
     // second argument is additional for each "strike" card

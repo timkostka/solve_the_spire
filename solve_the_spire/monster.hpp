@@ -83,9 +83,23 @@ struct Monster {
     bool Exists() const {
         return base != nullptr && hp > 0;
     }
+    // take X direct HP damage
+    void TakeHPLoss(uint16_t damage, bool attack_damage) {
+        assert(damage > 0);
+        // reduce HP
+        if (hp <= damage) {
+            hp = 0;
+        } else {
+            hp -= damage;
+            if (attack_damage && hp > 0 && buff[kBuffCurlUp]) {
+                block += buff[kBuffCurlUp];
+                buff[kBuffCurlUp] = 0;
+            }
+        }
+    }
     // take X damage
     void TakeDamage(uint16_t damage, bool attack_damage) {
-        // reduce block
+        // block what we can
         if (block) {
             if (block >= damage) {
                 block -= damage;
@@ -96,15 +110,8 @@ struct Monster {
                 block = 0;
             }
         }
-        // reduce HP
-        if (hp <= damage) {
-            hp = 0;
-        } else {
-            hp -= damage;
-            if (attack_damage && hp > 0 && buff[kBuffCurlUp]) {
-                block += buff[kBuffCurlUp];
-                buff[kBuffCurlUp] = 0;
-            }
+        if (damage) {
+            TakeHPLoss(damage, attack_damage);
         }
     }
     // get attacked for X damage

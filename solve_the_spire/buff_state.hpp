@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <ostream>
 
 // buff/debuff type
 enum BuffType : uint8_t {
@@ -17,11 +18,13 @@ enum BuffType : uint8_t {
     kBuffCurlUp,
     // at end of turn, decrease strength by this amount and zero this value
     kBuffStrengthDown,
+    kBuffPoison,
     kBuffRage,
     kBuffBarricade,
     kBuffBerserk,
     kBuffBrutality,
     kBuffDemonForm,
+    kBuffNoxiousFumes,
     // must be at end (used to get number of buffs and length of array)
     kBuffFinal,
 };
@@ -39,6 +42,7 @@ const BuffType positive_buffs[] = {
     kBuffBarricade,
     kBuffBerserk,
     kBuffDemonForm,
+    kBuffNoxiousFumes,
 };
 
 // list of negative buffs
@@ -47,6 +51,7 @@ const BuffType negative_buffs[] = {
     kBuffFrail,
     kBuffVulnerable,
     kBuffStrengthDown,
+    kBuffPoison,
 };
 
 // list of neutral buffs

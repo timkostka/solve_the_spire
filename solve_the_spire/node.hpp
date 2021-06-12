@@ -666,7 +666,7 @@ struct Node {
         if (turn != 0 && pending_action[0].type == kActionDrawCards) {
             ss << ", to_draw=" << (int) pending_action[0].arg[0];
         }
-        if (!tree_solved && block) {
+        if (block) {
             ss << ", block=" << (int) block;
         }
         if (!HasPendingActions()) {
@@ -854,8 +854,33 @@ struct Node {
             if (!mob.Exists()) {
                 continue;
             }
+            // apply noxious fumes poison
+            if (buff[kBuffNoxiousFumes]) {
+                mob.buff[kBuffPoison] += buff[kBuffNoxiousFumes];
+            }
+        }
+
+        ///////////////////////
+        // START OF MOB TURN //
+        ///////////////////////
+
+        // remove block on mobs
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
+            auto & mob = monster[i];
+            if (!mob.Exists()) {
+                continue;
+            }
+            // remove block
             if (!mob.buff[kBuffBarricade]) {
                 mob.block = 0;
+            }
+            // take poison
+            if (mob.buff[kBuffPoison]) {
+                mob.TakeHPLoss(mob.buff[kBuffPoison], false);
+                --mob.buff[kBuffPoison];
+                if (!mob.Exists()) {
+                    continue;
+                }
             }
         }
         // do mob actions
@@ -937,6 +962,8 @@ struct Node {
             block = 0;
         }
         assert(!HasPendingActions());
+        // player should never have poison
+        assert(!buff[kBuffPoison]);
         pending_action[0].type = kActionDrawCards;
         pending_action[0].arg[0] = 5;
         pending_action[0].arg[1] = 0;
@@ -1058,6 +1085,14 @@ struct Node {
                     break;
                 }
 
+                case kActionAttackIfPoisoned:
+                {
+                    if (!mob.Exists() || !mob.buff[kBuffPoison]) {
+                        break;
+                    }
+                    // this will continue into normal attack node
+                }
+
                 case kActionAttackPerfectedStrike:
                 case kActionAttackHeavyBlade:
                 case kActionAttackBowlingBash:
@@ -1069,7 +1104,8 @@ struct Node {
                     if (buff[kBuffRage] > 0) {
                         block += buff[kBuffRage];
                     }
-                    if (action.type == kActionAttack) {
+                    if (action.type == kActionAttack ||
+                            action.type == kActionAttackIfPoisoned) {
                         amount = action.arg[0];
                         count = action.arg[1];
                     } else if (action.type == kActionAttackPerfectedStrike) {
@@ -1090,6 +1126,7 @@ struct Node {
                             }
                         }
                     } else {
+                        printf("ERROR: unexpected attack type\n");
                         exit(1);
                     }
                     assert(card.flag.targeted);

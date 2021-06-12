@@ -71,5 +71,8 @@
     <ClInclude Include="tree.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="cards_silent.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
