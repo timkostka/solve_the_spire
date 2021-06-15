@@ -370,6 +370,29 @@ struct Node {
     bool HasChildren() const {
         return !child.empty();
     }
+    // estimate the final objective based on the nodes that are solved so far
+    // result is (p, obj) where p is percentage of solved nodes
+    std::pair<double, double> EstimateFinalObjective() const {
+        // if tree is solved, we know exactly what objective was
+        if (tree_solved) {
+            return std::pair<double, double>(probability, probability * composite_objective);
+        }
+        std::pair<double, double> result(0.0, 0.0);
+        if (HasChildren()) {
+            double multiplier = 1.0;
+            if (!HasPendingActions()) {
+                multiplier /= child.size();
+            }
+            for (auto & this_child_ptr : child) {
+                auto this_result = this_child_ptr->EstimateFinalObjective();
+                if (this_result.first > 0.0) {
+                    result.first += multiplier * this_result.first;
+                    result.second += multiplier * this_result.second;
+                }
+            }
+        }
+        return result;
+    }
     // return completion percent of this node
     // 1.0 = all children done
     double GetSolvedCompletionPercent() const {
@@ -1084,15 +1107,6 @@ struct Node {
                     hand = new_hand;
                     break;
                 }
-
-                case kActionAttackIfPoisoned:
-                {
-                    if (!mob.Exists() || !mob.buff[kBuffPoison]) {
-                        break;
-                    }
-                    // this will continue into normal attack node
-                }
-
                 case kActionAttackPerfectedStrike:
                 case kActionAttackHeavyBlade:
                 case kActionAttackBowlingBash:
@@ -1352,6 +1366,14 @@ struct Node {
                 case kActionHeal:
                 {
                     Heal(action.arg[0]);
+                    break;
+                }
+                case kActionIfPoisoned:
+                {
+                    assert(last_card_attack_matters);
+                    if (!mob.buff[kBuffPoison]) {
+                        ++i;
+                    }
                     break;
                 }
                 case kActionLastCardAttack:

@@ -110,6 +110,8 @@ enum ActionType : uint8_t {
     kUpgradeOneCardInHand,
     // upgrade call cards in hand
     kUpgradeAllCardsInHand,
+    // if the target is poisoned, do the next action (else skip it)
+    kActionIfPoisoned,
 };
 
 // An action is a single event caused by a card such as damage, or a buff

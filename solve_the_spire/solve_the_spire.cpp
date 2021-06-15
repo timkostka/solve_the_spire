@@ -493,14 +493,14 @@ int main(int argc, char ** argv) {
             }
         }
     } else {
-        ProcessArgument(tree, "--character=silent");
+        ProcessArgument(tree, "--character=ironclad");
         ProcessArgument(tree, "--fight=gremlin_nob");
-        //ProcessArgument(start_node, "--character=silent");
-        //ProcessArgument(start_node, "--character=defect");
-        //ProcessArgument(start_node, "--character=watcher");
+        //ProcessArgument(tree, "--character=silent");
+        //ProcessArgument(tree, "--character=defect");
+        //ProcessArgument(tree, "--character=watcher");
         //start_node.deck.AddCard(card_immolate);
         //start_node.deck.AddCard(card_ghostly_armor);
-        //start_node.deck.AddCard(card_impervious);
+        start_node.deck.AddCard(card_impervious);
         //start_node.deck.AddCard(card_pummel);
         //start_node.deck.AddCard(card_crush_joints);
         //start_node.deck.AddCard(card_pommel_strike);
@@ -511,16 +511,16 @@ int main(int argc, char ** argv) {
         //start_node.deck.AddCard(card_sucker_punch);
         //start_node.deck.RemoveCard(card_strike);
         //start_node.deck.RemoveCard(card_ascenders_bane);
-
+        //start_node.deck.AddCard(card_deadly_poison);
         //start_node.deck.RemoveCard(card_ascenders_bane.GetIndex());
         //start_node.deck.RemoveCard(card_vigilance.GetIndex());
 
         start_node.hp = start_node.max_hp * 9 / 10;
-        tree.fight_type = kFightAct1EliteGremlinNob;
+        //tree.fight_type = kFightAct1EliteGremlinNob;
         //tree.fight_type = kFightAct1EasyCultist;
         //tree.fight_type = kFightAct1EasyJawWorm;
         //tree.fight_type = kFightAct1EasyLouses;
-        tree.fight_type = kFightAct1EliteLagavulin;
+        //tree.fight_type = kFightAct1EliteLagavulin;
         //tree.fight_type = kFightTestOneLouse;
     }
 

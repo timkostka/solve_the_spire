@@ -52,3 +52,6 @@ constexpr bool upgrades_strictly_better = true;
 // if true, will make choices to stay alive even if death is inevitable and more
 // damage to the mob could be done
 constexpr bool always_avoid_dying = false;
+
+// when we reach this many nodes stored, stop storing the entire tree
+constexpr uint32_t max_nodes_to_store = 10000000;

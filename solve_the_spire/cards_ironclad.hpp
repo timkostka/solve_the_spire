@@ -249,7 +249,7 @@ const Card card_metallicize_plus = {
     {.skill = 1, .uncommon = 1, .ironclad = 1},
     {{kActionBuff, kBuffMetallicize, 4}, {kActionNone}}};
 const Card card_metallicize = {
-    "Metallicize", 1, 1, & card_metallicize_plus,
+    "Metallicize", 1, 1, &card_metallicize_plus,
     {.skill = 1, .uncommon = 1, .ironclad = 1},
     {{kActionBuff, kBuffMetallicize, 3}, {kActionNone}}};
 
@@ -258,7 +258,7 @@ const Card card_power_through_plus = {
     {.skill = 1, .uncommon = 1, .ironclad = 1},
     {{kActionBlock, 15}, {kActionAddCardToHand, card_wound.GetIndex(), 2}, {kActionNone}}};
 const Card card_power_through = {
-    "Power Through", 1, 1, & card_power_through_plus,
+    "Power Through", 1, 1, &card_power_through_plus,
     {.skill = 1, .uncommon = 1, .ironclad = 1},
     {{kActionBlock, 15}, {kActionAddCardToHand, card_wound.GetIndex(), 2}, {kActionNone}}};
 
@@ -267,7 +267,7 @@ const Card card_pummel_plus = {
     {.attack = 1, .targeted = 1, .exhausts = 1, .uncommon = 1, .ironclad = 1},
     {{kActionAttack, 2, 5}, {kActionNone}}};
 const Card card_pummel = {
-    "Pummel", 1, 1, & card_pummel_plus,
+    "Pummel", 1, 1, &card_pummel_plus,
     {.attack = 1, .targeted = 1, .exhausts = 1, .uncommon = 1, .ironclad = 1},
     {{kActionAttack, 2, 4}, {kActionNone}}};
 
@@ -276,7 +276,7 @@ const Card card_rage_plus = {
     {.skill = 1, .uncommon = 1, .ironclad = 1},
     {{kActionBuff, kBuffRage, 5}, {kActionNone}}};
 const Card card_rage = {
-    "Rage", 1, 1, & card_rage_plus,
+    "Rage", 1, 1, &card_rage_plus,
     {.skill = 1, .uncommon = 1, .ironclad = 1},
     {{kActionBuff, kBuffRage, 3}, {kActionNone}}};
 
@@ -287,7 +287,7 @@ const Card card_reckless_charge_plus = {
     {.attack = 1, .targeted = 1, .uncommon = 1, .ironclad = 1},
     {{kActionAttack, 10, 1}, {kActionAddCardToDrawPile, card_dazed.GetIndex(), 1}, {kActionNone}}};
 const Card card_reckless_charge = {
-    "Reckless Charge", 0, 0, & card_reckless_charge_plus,
+    "Reckless Charge", 0, 0, &card_reckless_charge_plus,
     {.attack = 1, .targeted = 1, .uncommon = 1, .ironclad = 1},
     {{kActionAttack, 10, 1}, {kActionAddCardToDrawPile, card_dazed.GetIndex(), 1}, {kActionNone}}};
 

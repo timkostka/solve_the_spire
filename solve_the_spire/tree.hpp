@@ -1351,14 +1351,16 @@ struct TreeStruct {
             // update every second
             stats_shown = false;
             if (show_stats || clock() >= next_update) {
-                /*double p = 0.0;
-                for (auto & node_ptr : terminal_nodes) {
-                    p += node_ptr->probability;
-                }*/
+                auto est_obj_result = top_node_ptr->EstimateFinalObjective();
                 std::size_t tree_nodes =
                     1 + created_node_count - deleted_nodes.size();
                 std::cout << "Tree stats: maxobj=" <<
-                    top_node_ptr->composite_objective <<
+                    top_node_ptr->composite_objective;
+                if (est_obj_result.first > 0.0) {
+                    std::cout << ", estobj=" <<
+                        (est_obj_result.second / est_obj_result.first);
+                }
+                std::cout <<
                     ", expanded=" <<
                     ToString(expanded_node_count) <<
                     ", generated=" <<
