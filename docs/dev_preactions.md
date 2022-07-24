@@ -9,3 +9,5 @@ Possible actions:
 * Generate mobs intents
 * Draw X cards (for start of turn as well as for card actions)
 * Discard X cards
+
+I implemented this into the `pending_action` list.

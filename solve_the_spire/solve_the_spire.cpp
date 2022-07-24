@@ -488,6 +488,8 @@ int main(int argc, char ** argv) {
         ProcessArgument(tree, "--fight=gremlin_nob");
         //ProcessArgument(tree, "--fight=lagavulin");
         //ProcessArgument(tree, "--fight=blue_slaver");
+        //ProcessArgument(tree, "--fight=jaw_worm");
+        //ProcessArgument(tree, "--fight=cultist");
         ProcessArgument(tree, "--character=ironclad");
         //ProcessArgument(tree, "--character=silent");
         //ProcessArgument(tree, "--character=defect");

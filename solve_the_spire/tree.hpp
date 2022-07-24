@@ -120,14 +120,9 @@ std::list<MobLayout> GenerateAllMobs(FightEnum fight_type) {
 // sort nodes so that we know which to expand first
 struct PathObjectiveSort {
     bool operator() (Node * const first, Node * const second) const {
-        return first->path_objective > second->path_objective ||
+        return first->path_objective < second->path_objective ||
             (first->path_objective == second->path_objective &&
                 first < second);
-        //return first->path_objective > second->path_objective ||
-        //    (first->path_objective == second->path_objective && 
-        //        (first->probability > second->probability ||
-        //        first->probability == second->probability &&
-        //        first < second));
     }
 };
 
@@ -140,11 +135,9 @@ struct TreeStruct {
     Node * top_node_ptr;
     // fight type
     FightEnum fight_type;
-    // list of deleted nodes which we can reuse
+    // list of pointers to deleted nodes which we can reuse
     // (in order to avoid thrashing memory with new/delete)
     std::vector<Node *> deleted_nodes;
-    // list of all created nodes
-    //std::list<Node *> all_nodes;
     // number of nodes created
     std::size_t created_node_count;
     // number of nodes reused
@@ -152,7 +145,8 @@ struct TreeStruct {
     // number of nodes which were expanded
     std::size_t expanded_node_count;
     // nodes which need expanded after a path is formed
-    std::set<Node *, PathObjectiveSort> optional_nodes;
+    //std::set<Node *, PathObjectiveSort> optional_nodes;
+    std::vector<Node *> optional_nodes;
     // list of terminal nodes
     // (a terminal node is a node where the battle is over)
     std::set<Node *> terminal_nodes;
@@ -188,7 +182,8 @@ struct TreeStruct {
         // should have already been evaluated
         assert(node.path_objective == node.GetPathObjective());
         // add it
-        optional_nodes.insert(&node);
+        //optional_nodes.insert(&node);
+        optional_nodes.push_back(&node);
     }
     // create a new node and return a reference to it
     Node & CreateChild(Node & node, bool add_to_optional) {
@@ -266,6 +261,12 @@ struct TreeStruct {
             }
         }
     }
+    // sort for possible hands, least probable first
+    static bool MyDrawCardSort(
+            const std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>> & one,
+            const std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>> & two) {
+        return one.first < two.first || one.first == two.first && &one < &two;
+    }
     // draw cards
     void DrawCards(Node & node) {
         //assert(node.cards_to_draw > 0);
@@ -301,6 +302,7 @@ struct TreeStruct {
         }
         // else draw all cards we can and add each as a child node
         auto choices = node.draw_pile.Select(to_draw);
+        std::sort(choices.begin(), choices.end(), MyDrawCardSort);
         for (const auto & choice : choices) {
             // add new node
             Node & new_node = CreateChild(node, true);
@@ -329,7 +331,8 @@ struct TreeStruct {
         }
         // if this node has yet to be expanded, delete it from the optional list
         if (!node.tree_solved && update_terminal && !node.IsTerminal() && node.child.empty()) {
-            auto it = optional_nodes.find(&node);
+            //auto it = optional_nodes.find(&node);
+            auto it = std::find(optional_nodes.begin(), optional_nodes.end(), &node);
             if (it == optional_nodes.end()) {
                 node.parent->PrintTree();
                 printf("ERROR: optional node is missing\n");
@@ -711,6 +714,12 @@ struct TreeStruct {
             }
         }
     }
+    // sort for battle layouts, least probable first
+    static bool MyBattleSort(
+            const std::pair<double, std::vector<Monster>> & one,
+            const std::pair<double, std::vector<Monster>> & two) {
+        return one.first < two.first || one.first == two.first && &one < &two;
+    }
     // start new battle and generate mobs
     void GenerateBattle(Node & this_node) {
         assert(this_node.turn == 0);
@@ -726,6 +735,8 @@ struct TreeStruct {
         } else {
             mob_layouts = fight_map[fight_type].generation_function();
         }
+        // sort by probability to happen, with most probable first
+        std::sort(mob_layouts.begin(), mob_layouts.end(), MyBattleSort);
         //std::cout << "Generated " << mob_layouts.size() << " different mob layouts.\n";
         for (auto & layout : mob_layouts) {
             // create one node per mob layout
@@ -1145,7 +1156,7 @@ struct TreeStruct {
             if (node.HasPendingActions()) {
                 double x = node.CalculateCompositeObjective();
                 bool solved = node.AreChildrenSolved();
-                if (node.composite_objective != x || node.tree_solved != solved) {
+                if (node.composite_objective != x || solved) {
                     node.composite_objective = x;
                     node.tree_solved = solved;
                     DeleteChildren(node);
@@ -1164,8 +1175,8 @@ struct TreeStruct {
             Node * max_solved_objective_ptr = nullptr;
             bool unsolved_children = false;
             double max_unsolved_objective = 0.0;
-            for (std::size_t i = 0; i < node.child.size(); ++i) {
-                Node & this_child = *node.child[i];
+            for (auto & this_child_ptr : node.child) {
+                auto & this_child = *this_child_ptr;
                 if (this_child.tree_solved) {
                     if (!solved_children ||
                         this_child.composite_objective > max_solved_objective) {
@@ -1205,10 +1216,14 @@ struct TreeStruct {
             // (2) if no children are solved, objective is the highest child objective
             if (!solved_children) {
                 if (node.composite_objective != max_unsolved_objective) {
+                    assert(node.composite_objective > max_unsolved_objective);
+                    //printf("DEBUG: Objective went down\n");
                     node.composite_objective = max_unsolved_objective;
                     node_ptr = node.parent;
                     continue;
                 }
+                // this node wasn't updated, so parent nodes won't be either, so we can
+                // safely exit
                 return;
             }
             // (3) if some children are solved, eliminate unsolved paths with
@@ -1227,22 +1242,25 @@ struct TreeStruct {
                             this_child.composite_objective <= max_solved_objective)) {
                         DeleteNodeAndChildren(this_child);
                         node.child.erase(node.child.begin() + i);
-                        continue;
                     }
                 }
             }
             // if path is now solved, mark it as such
             if (solved_children && node.child.size() == 1) {
                 node.tree_solved = true;
-            } else {
-                assert(max_unsolved_objective > max_solved_objective);
+                node.composite_objective = max_solved_objective;
+                DeleteChildren(node);
+                node_ptr = node.parent;
+                continue;
             }
+            // path is not solved, other choices may be better
+            assert(max_unsolved_objective > max_solved_objective);
             // if objective changed, update parents
             double x = std::max(max_unsolved_objective, max_solved_objective);
             assert(max_unsolved_objective <= node.composite_objective);
-            if (node.tree_solved ||
-                max_unsolved_objective < node.composite_objective) {
-                node.composite_objective = x;
+            if (max_unsolved_objective != node.composite_objective) {
+                assert(max_unsolved_objective < node.composite_objective);
+                node.composite_objective = max_unsolved_objective;
                 DeleteChildren(node);
                 node_ptr = node.parent;
                 continue;
@@ -1271,36 +1289,36 @@ struct TreeStruct {
         //    }
         //}
         //assert(deleted_nodes.find(&node) == deleted_nodes.end());
-        if (node.child.empty()) {
-            assert(node.tree_solved == node.IsBattleDone());
-            if (!node.tree_solved) {
-                if (optional_nodes.find(&node) == optional_nodes.end()) {
-                    top_node_ptr->PrintTree(false, &node);
-                    assert(node.HasAncestor(*top_node_ptr));
-                    printf("ERROR: optional node missing\n");
-                    pass = false;
-                }
-            } else {
-                if (optional_nodes.find(&node) != optional_nodes.end()) {
-                    printf("ERROR: invalid optional node\n");
-                    pass = false;
-                }
-                if (terminal_nodes.find(&node) == terminal_nodes.end()) {
-                    printf("ERROR: terminal node missing\n");
-                    pass = false;
-                }
-            }
-            return true;
-        } else {
-            if (optional_nodes.find(&node) != optional_nodes.end()) {
-                printf("ERROR: invalid optional node\n");
-                pass = false;
-            }
-            if (terminal_nodes.find(&node) != terminal_nodes.end()) {
-                printf("ERROR: invalid terminal node\n");
-                pass = false;
-            }
-        }
+        //if (node.child.empty()) {
+        //    assert(node.tree_solved == node.IsBattleDone());
+        //    if (!node.tree_solved) {
+        //        if (optional_nodes.find(&node) == optional_nodes.end()) {
+        //            top_node_ptr->PrintTree(false, &node);
+        //            assert(node.HasAncestor(*top_node_ptr));
+        //            printf("ERROR: optional node missing\n");
+        //            pass = false;
+        //        }
+        //    } else {
+        //        if (optional_nodes.find(&node) != optional_nodes.end()) {
+        //            printf("ERROR: invalid optional node\n");
+        //            pass = false;
+        //        }
+        //        if (terminal_nodes.find(&node) == terminal_nodes.end()) {
+        //            printf("ERROR: terminal node missing\n");
+        //            pass = false;
+        //        }
+        //    }
+        //    return true;
+        //} else {
+        //    if (optional_nodes.find(&node) != optional_nodes.end()) {
+        //        printf("ERROR: invalid optional node\n");
+        //        pass = false;
+        //    }
+        //    if (terminal_nodes.find(&node) != terminal_nodes.end()) {
+        //        printf("ERROR: invalid terminal node\n");
+        //        pass = false;
+        //    }
+        //}
         if (!node.HasPendingActions() && node.tree_solved) {
             assert(node.child.size() == 1);
         }
@@ -1316,13 +1334,13 @@ struct TreeStruct {
                 printf("ERROR: terminal node not in list\n");
                 pass = false;
             }
-        } else if (node.child.empty()) {
+        }/* else if (node.child.empty()) {
             auto it = optional_nodes.find(&node);
             if (it == optional_nodes.end()) {
                 printf("ERROR: optional node not in list\n");
                 pass = false;
             }
-        }
+        }*/
         // if all children are solved, this should be solved as well
         if (!node.child.empty()) {
             bool children_solved = true;
@@ -1357,14 +1375,13 @@ struct TreeStruct {
         }
         optional_nodes.clear();
         top_node_ptr->path_objective = top_node_ptr->GetPathObjective();
-        optional_nodes.insert(top_node_ptr);
+        //optional_nodes.insert(top_node_ptr);
+        optional_nodes.push_back(top_node_ptr);
         expanded_node_count = 0;
         std::clock_t next_update = clock();
         bool stats_shown = false;
         bool show_stats = true;
-
         double update_duration = 1.0;
-
         // expand nodes until they're all done
         std::size_t iteration = 0;
         while (true) {
@@ -1416,19 +1433,15 @@ struct TreeStruct {
             }
             // find next node to expand and do it
             Node * this_node_ptr = nullptr;
-            this_node_ptr = *optional_nodes.begin();
-            optional_nodes.erase(optional_nodes.begin());
+            this_node_ptr = *optional_nodes.rbegin();
+            optional_nodes.erase(prev(optional_nodes.end()));
             Node & this_node = *this_node_ptr;
             //printf("Expanding (%u): %s\n", (unsigned int) iteration, this_node.ToString().c_str());
             ++expanded_node_count;
-            // do next preaction
+            // do next pending action, if any
             if (this_node.pending_action[0].type != kActionNone) {
                 if (this_node.pending_action[0].type == kActionGenerateBattle) {
-                    //this_node.player_choice = false;
                     GenerateBattle(this_node);
-                    UpdateTree(&this_node);
-                } else if (this_node.pending_action[0].type == kActionGenerateMobIntents) {
-                    GenerateMobIntents(this_node);
                     UpdateTree(&this_node);
                 } else if (this_node.pending_action[0].type == kActionDrawCards) {
                     DrawCards(this_node);
@@ -1437,13 +1450,18 @@ struct TreeStruct {
                         printf("First hand has %u possible draws\n",
                             (unsigned int) this_node.child.size());
                     }
+                } else if (this_node.pending_action[0].type == kActionGenerateMobIntents) {
+                    GenerateMobIntents(this_node);
+                    UpdateTree(&this_node);
                 } else {
                     printf("ERROR: unexpected preaction type\n");
                     exit(1);
                 }
                 continue;
             }
-            // play a card or end the turn
+            // no pending actions, so let player make a choice
+            // (play card or end turn)
+            // TODO: or drink potion
             //this_node.PrintTree();
             FindPlayerChoices(this_node);
             //this_node.PrintTree();

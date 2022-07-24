@@ -49,3 +49,4 @@ I've implemented this by using the `layer` variable and incorporating that heavi
 
 Instead of using the layer directly, perhaps have a different set at each layer level and simply evaluating the deepest layer first. This eliminates the use of `layer` within the metric, and reduces the size of the set, which should aid efficiency.
 
+Or, we could also notice that when we add a set of new nodes to the optional list, we always want to evaluate those before ones that already exist. Maybe we could use a vector or list rather than a set. But how does that work when we need to delete nodes?

@@ -16,7 +16,7 @@ struct CardCollectionNode {
     // new card collection node if we add a remove a card index
     mutable std::vector<const CardCollectionNode *> remove_card_node;
     // comparison
-    bool operator< (const CardCollectionNode & that) const {
+    bool operator < (const CardCollectionNode & that) const {
         return collection < that.collection;
     };
 };
@@ -67,7 +67,7 @@ struct CardCollectionPtr {
                 return;
             }
         } else {
-            node_ptr->add_card_node.resize(index + 1, nullptr);
+            node_ptr->add_card_node.resize((std::size_t) index + 1, nullptr);
         }
         // create new collection
         CardCollectionNode node = {
@@ -82,7 +82,7 @@ struct CardCollectionPtr {
             auto result = deck_collection.insert(node);
             const CardCollectionNode * new_node_ptr = &*result.first;
             node_ptr->add_card_node[index] = new_node_ptr;
-            new_node_ptr->remove_card_node.resize(index + 1, nullptr);
+            new_node_ptr->remove_card_node.resize((std::size_t) index + 1, nullptr);
             new_node_ptr->remove_card_node[index] = node_ptr;
             node_ptr = new_node_ptr;
         } else {
@@ -90,7 +90,7 @@ struct CardCollectionPtr {
             const CardCollectionNode * new_node_ptr = &*it;
             node_ptr->add_card_node[index] = new_node_ptr;
             if (new_node_ptr->remove_card_node.size() <= index) {
-                new_node_ptr->remove_card_node.resize(index + 1, nullptr);
+                new_node_ptr->remove_card_node.resize((std::size_t) index + 1, nullptr);
             }
             new_node_ptr->remove_card_node[index] = node_ptr;
             node_ptr = new_node_ptr;
@@ -124,7 +124,7 @@ struct CardCollectionPtr {
                 return;
             }
         } else {
-            node_ptr->remove_card_node.resize(index + 1, nullptr);
+            node_ptr->remove_card_node.resize((std::size_t) index + 1, nullptr);
         }
         // create new collection
         CardCollectionNode node = {
@@ -139,7 +139,7 @@ struct CardCollectionPtr {
             auto result = deck_collection.insert(node);
             const CardCollectionNode * new_node_ptr = &*result.first;
             node_ptr->remove_card_node[index] = new_node_ptr;
-            new_node_ptr->add_card_node.resize(index + 1, nullptr);
+            new_node_ptr->add_card_node.resize((std::size_t) index + 1, nullptr);
             new_node_ptr->add_card_node[index] = node_ptr;
             node_ptr = new_node_ptr;
         } else {
@@ -147,7 +147,7 @@ struct CardCollectionPtr {
             const CardCollectionNode * new_node_ptr = &*it;
             node_ptr->remove_card_node[index] = new_node_ptr;
             if (new_node_ptr->add_card_node.size() <= index) {
-                new_node_ptr->add_card_node.resize(index + 1, nullptr);
+                new_node_ptr->add_card_node.resize((std::size_t) index + 1, nullptr);
             }
             new_node_ptr->add_card_node[index] = node_ptr;
             node_ptr = new_node_ptr;

@@ -20,12 +20,6 @@
 #include "fight.hpp"
 #include "orbs.hpp"
 
-// map of decks
-// Each node stores a pointer to a deck within this collection rather than
-// storing the entire collection.  This reduces the number of std::vectors
-// within the Node along with the associated create/copy/delete operations.
-//CardCollectionMapStruct card_collections;
-
 // enum for a decision
 enum DecisionTypeEnum : uint8_t {
     kDecisionUnused = 0,
@@ -119,39 +113,16 @@ struct Node {
     RelicStruct relics;
     // list of children
     vector<Node *> child;
-    // probability of getting to this node from the parent
-    // (only valid if player_choice of parent is false)
+    // probability of getting to this node if we make the right choices
     double probability;
     // decision at parent node in order to get to this node
-    // (only valid if player_choice of parent is false)
+    // (only valid if parent has no pending actions)
     Decision parent_decision;
     // maximum possible composite objective
     // (if tree_solved=true, this is the final composite objective)
     double composite_objective;
     // path objective (used to sort optional nodes for evaluating)
     double path_objective;
-    // default constructor
-    //Node() :
-    //    fight_type(kFightAct1EasyCultist),
-    //    turn(0),
-    //    max_hp(0),
-    //    hp(0),
-    //    block(0),
-    //    deck(),
-    //    hand(),
-    //    draw_pile(),
-    //    tree_solved(false),
-    //    battle_done(false),
-    //    cards_to_draw(0),
-    //    composite_objective(0.0),
-    //    energy(0) {
-    //    // TODO
-    //}
-    // assignment operator
-    //void operator= (const Node & that) {
-    //    memcpy(this, &that, sizeof(*this));
-    //    //printf("ASDF\n");
-    //}
     // add a single child node with 100% probability
     void AddChild(Node & child_node) {
         child.push_back(&child_node);
@@ -307,15 +278,11 @@ struct Node {
             action.type = kActionNone;
         }
         pending_action[0].type = kActionGenerateBattle;
-        //index = 0;
         layer = 0;
         turn = 0;
         block = 0;
         probability = 1.0;
         energy = 0;
-        //cards_to_draw = 0;
-        //generate_mob_intents = true;
-        //player_choice = false;
         parent = nullptr;
         buff.Reset();
         tree_solved = false;
@@ -609,14 +576,12 @@ struct Node {
         }
         // add draw card and generate mob intent preactions
         assert(!HasPendingActions());
-        pending_action[0].type = kActionDrawCards;
-        pending_action[0].arg[0] = cards_to_draw;
+        pending_action[0].type = kActionGenerateMobIntents;
+        pending_action[0].arg[0] = 0;
         pending_action[0].arg[1] = 0;
-        pending_action[1].type = kActionGenerateMobIntents;
-        pending_action[1].arg[0] = 0;
+        pending_action[1].type = kActionDrawCards;
+        pending_action[1].arg[0] = cards_to_draw;
         pending_action[1].arg[1] = 0;
-        //player_choice = false;
-        //generate_mob_intents = true;
         battle_done = false;
     }
     // convert to human readable string
@@ -819,7 +784,6 @@ struct Node {
     // (simulate end of turn and mob actions)
     void EndTurn() {
         // set tree information
-            //player_choice = false;
         parent_decision.type = kDecisionEndTurn;
         // process orbs
 #ifdef USE_ORBS
@@ -988,11 +952,11 @@ struct Node {
         assert(!HasPendingActions());
         // player should never have poison
         assert(!buff[kBuffPoison]);
-        pending_action[0].type = kActionDrawCards;
-        pending_action[0].arg[0] = 5;
+        pending_action[0].type = kActionGenerateMobIntents;
+        pending_action[0].arg[0] = 0;
         pending_action[0].arg[1] = 0;
-        pending_action[1].type = kActionGenerateMobIntents;
-        pending_action[1].arg[0] = 0;
+        pending_action[1].type = kActionDrawCards;
+        pending_action[1].arg[0] = 5;
         pending_action[1].arg[1] = 0;
         // brutality buff
         if (buff[kBuffBrutality]) {
