@@ -128,6 +128,9 @@ struct PathObjectiveSort {
 
 // hold a structure for solving for optimal play decisions
 struct TreeStruct {
+    // if true, save all nodes, else prune solved nodes as much as possible
+    // (value is changed to false when nodes exceed max_nodes_to_store)
+    bool keep_all_nodes = true;
     // pointer to top node
     Node * top_node_ptr;
     // fight type
@@ -320,11 +323,11 @@ struct TreeStruct {
             }
         }
         // if this node has yet to be expanded, delete it from the optional list
-        if (update_terminal && !node.IsTerminal() && node.child.empty()) {
+        if (!node.tree_solved && update_terminal && !node.IsTerminal() && node.child.empty()) {
             auto it = optional_nodes.find(&node);
             if (it == optional_nodes.end()) {
-                printf("ERROR: optional node is missing\n");
                 node.parent->PrintTree();
+                printf("ERROR: optional node is missing\n");
             } else {
                 optional_nodes.erase(it);
             }
@@ -547,7 +550,6 @@ struct TreeStruct {
                         }
                     } else {
                         Node & new_node = CreateChild(this_node, false);
-                        new_node.layer = top_node.layer + 1;
                         new_node.hand.RemoveCard(card_index);
                         new_node.PlayCard(card_index);
                         new_node.SortMobs();
@@ -980,6 +982,7 @@ struct TreeStruct {
             printf("- Variations in mob HP and stats are normalized\n");
         }
         printf("\nResult stats:\n");
+        printf("- Expected final HP of %.6g\n", top_node_ptr->hp + expected_hp_delta);
         printf("- Expected HP change is %+.6g\n", expected_hp_delta);
         printf("- Min/max HP change of %+d and %+d\n",
             hp_delta.begin()->first, hp_delta.rbegin()->first);
@@ -1078,6 +1081,27 @@ struct TreeStruct {
     }
     // delete nodes depending on settings
     void DeleteChildren(Node & node) {
+        // update flag
+        if (keep_all_nodes && created_node_count > max_nodes_to_store) {
+            keep_all_nodes = false;
+            printf("Note: no longer keeping all nodes\n");
+            // TODO: go through tree and delete children of solved nodes
+        }
+        // if we're saving all nodes, just return
+        if (keep_all_nodes) {
+            return;
+        }
+        // always keep the top node
+        if (node.parent == nullptr) {
+            return;
+        }
+        // if solved, delete all children
+        if (node.tree_solved) {
+            for (auto & child_ptr : node.child) {
+                DeleteNodeAndChildren(*child_ptr);
+            }
+            node.child.clear();
+        }
         // TODO
     //    if (!keep_entire_tree_in_memory &&
     //            parent != nullptr &&

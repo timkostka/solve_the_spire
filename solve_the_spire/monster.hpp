@@ -299,6 +299,31 @@ BaseMonster base_mob_jaw_worm = {
     GetIntentJawWorm,
 };
 
+// get intent of Blue Slaver
+IntentPossibilites GetIntentBlueSlaver(Monster & mob) {
+    IntentPossibilites result;
+    if (mob.last_intent[0] == 0 && mob.last_intent[1] == 0) {
+        result.push_back(std::pair<double, uint8_t>(1.0, 1));
+    } else if (mob.last_intent[0] == 1) {
+        result.push_back(std::pair<double, uint8_t>(1.0, 0));
+    } else {
+        result.push_back(std::pair<double, uint8_t>(0.60, 0));
+        result.push_back(std::pair<double, uint8_t>(0.40, 1));
+    }
+    return result;
+}
+
+// base models for each mob are below
+BaseMonster base_mob_blue_slaver = {
+    "Blue Slaver",
+    {48, 52},
+    {
+        {"Stab", {{kActionAttack, 13}}},
+        {"Rake", {{kActionAttack, 8}, {kActionDebuff, kBuffWeak, 2}}},
+    },
+    GetIntentBlueSlaver,
+};
+
 // get intent of Red Louse
 IntentPossibilites GetIntentRedLouse(Monster & mob) {
     IntentPossibilites result;

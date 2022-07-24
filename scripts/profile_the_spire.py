@@ -18,7 +18,7 @@ arguments = ["--character=ironclad",
 
 
 def get_output(command):
-    """Return the ping duration to to given site, or None."""
+    """Run a command and return the stdout output."""
     return subprocess.check_output(command, shell=True).decode('utf-8')
 
 

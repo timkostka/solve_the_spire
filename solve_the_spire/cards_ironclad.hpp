@@ -396,7 +396,14 @@ const Card card_demon_form = {
 
 // feed
 
-// fiend fire
+const Card card_fiend_fire_plus = {
+    "Fiend Fire+", 2, 2, nullptr,
+    {.attack = 1, .targeted = 1, .exhausts = 1, .rare = 1, .ironclad = 1},
+    {{kActionAttackFiendFire, 10}, {kActionNone}}};
+const Card card_fiend_fire = {
+    "Fiend Fire", 2, 2, & card_fiend_fire_plus,
+    {.attack = 1, .targeted = 1, .exhausts = 1, .rare = 1, .ironclad = 1},
+    {{kActionAttackFiendFire, 7}, {kActionNone}}};
 
 const Card card_immolate_plus = {
     "Immolate+", 2, 2, nullptr,

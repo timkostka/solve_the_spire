@@ -21,6 +21,9 @@ enum ActionType : uint8_t {
     // first argument is attack amount
     // second argument is number of attacks
     kActionAttack,
+    // attack a single enemy
+    // first argument is attack amount per exhaused card
+    kActionAttackFiendFire,
     // attack a single enemy if it's poisoned
     // first argument is attack amount
     // second argument is number of attacks

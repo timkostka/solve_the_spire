@@ -1111,6 +1111,7 @@ struct Node {
                 case kActionAttackHeavyBlade:
                 case kActionAttackBowlingBash:
                 case kActionAttackBodySlam:
+                case kActionAttackFiendFire:
                 case kActionAttack:
                 {
                     uint16_t amount = 0;
@@ -1139,6 +1140,15 @@ struct Node {
                                 ++count;
                             }
                         }
+                    } else if (action.type == kActionAttackFiendFire) {
+                        // exhaust all cards
+                        for (auto & deck_item : hand) {
+                            const Card & card = *card_map[deck_item.first];
+                            exhaust_pile.AddCard(deck_item.first, deck_item.second);
+                            amount += action.arg[0] * deck_item.second;
+                        }
+                        count = 1;
+                        hand.Clear();
                     } else {
                         printf("ERROR: unexpected attack type\n");
                         exit(1);

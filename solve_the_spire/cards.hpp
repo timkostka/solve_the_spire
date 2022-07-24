@@ -181,6 +181,26 @@ const Card card_miracle = {
     {.skill = 1, .special = 1, .watcher = 1},
     {{kActionGainEnergy, 1}, {kActionNone}}};
 
+// created watcher cards
+
+const Card card_smite_plus = {
+    "Smite+", 1, 1, nullptr,
+    {.attack = 1, .exhausts = 1, .special = 1, .watcher = 1},
+    {{kActionAttack, 16, 1}, {kActionNone}}};
+const Card card_smite = {
+    "Smite", 1, 1, &card_smite_plus,
+    {.attack = 1, .exhausts = 1, .special = 1, .watcher = 1},
+    {{kActionAttack, 12, 1}, {kActionNone}}};
+
+const Card card_through_violence_plus = {
+    "Through Violence+", 0, 0, nullptr,
+    {.attack = 1, .exhausts = 1, .retain = 1, .special = 1, .watcher = 1},
+    {{kActionAttack, 30, 1}, {kActionNone}}};
+const Card card_through_violence = {
+    "Through Violence", 0, 0, &card_through_violence_plus,
+    {.attack = 1, .exhausts = 1, .retain = 1, .special = 1, .watcher = 1},
+    {{kActionAttack, 40, 1}, {kActionNone}}};
+
 // common watcher cards
 
 const Card card_bowling_bash_plus = {
@@ -321,7 +341,6 @@ const Card card_prostrate = {
     {.skill = 1, .common = 1, .watcher = 1},
     {{kActionGainMantra, 2}, {kActionBlock, 4}, {kActionNone}}};
 
-
 const Card card_protect_plus = {
     "Protect+", 2, 2, nullptr,
     {.skill = 1, .retain = 1, .common = 1, .watcher = 1},
@@ -358,7 +377,64 @@ const Card card_tranquility = {
     {.skill = 1, .common = 1, .watcher = 1},
     {{kActionChangeStance, kStanceCalm}, {kActionNone}}};
 
+// uncommon Watcher cards
+
+// battle hymn
+
+const Card card_carve_reality_plus = {
+    "Carve Reality+", 1, 1, nullptr,
+    {.attack = 1, .uncommon = 1, .watcher = 1},
+    {{kActionAttack, 10, 1}, {kActionAddCardToHand, card_smite.GetIndex(), 1}, {kActionNone}}};
+const Card card_carve_reality = {
+    "Carve Reality", 1, 1, &card_carve_reality_plus,
+    {.attack = 1, .uncommon = 1, .watcher = 1},
+    {{kActionAttack, 6, 1}, {kActionAddCardToHand, card_smite.GetIndex(), 1}, {kActionNone}}};
+
+// collect
+// conclude
+// deceive reality
+// empty mind
+// fasting
+// fear no evil
+// foreign influence
+// foresight
+// indignation
+// inner peace
+// like water
+// meditate
+// mental fortress
+// nirvana
+// perseverance
+// pray
+
+const Card card_reach_heaven_plus = {
+    "Reach Heaven+", 2, 2, nullptr,
+    {.attack = 1, .uncommon = 1, .watcher = 1},
+    {{kActionAttack, 15, 1}, {kActionAddCardToDrawPile, card_through_violence.GetIndex(), 1}, {kActionNone}}};
+const Card card_reach_heaven = {
+    "Reach Heaven", 1, 1, & card_reach_heaven_plus,
+    {.attack = 1, .uncommon = 1, .watcher = 1},
+    {{kActionAttack, 10, 1}, {kActionAddCardToDrawPile, card_through_violence.GetIndex(), 1}, {kActionNone}}};
+
+// rushdown
+// sanctity
+// sands of time
+// simmering fury
+// study
+// swivel
+// talk to the hand
+// tantrum
+// wallop
+// wave of the hand
+// weave
+// wheel kick
+// windmill strike
+// worship
+// wreath of flame
+
+
 #include "cards_status.hpp"
 #include "cards_colorless.hpp"
 #include "cards_ironclad.hpp"
 #include "cards_silent.hpp"
+    
