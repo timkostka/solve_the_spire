@@ -132,28 +132,9 @@ const Card card_ascenders_bane = {
     {.curse = 1, .unplayable = 1, .ethereal = 1},
     {{kActionNone}}};
 
-// starting defect cards
-
-const Card card_zap_plus = {
-    "Zap+", 0, 0, nullptr,
-    {.skill = 1, .starting = 1, .defect = 1},
-    {{kActionChannelOrb, kOrbLightning, 1}, {kActionNone}}};
-const Card card_zap = {
-    "Zap", 1, 1, & card_zap_plus,
-    {.skill = 1, .starting = 1, .defect = 1},
-    {{kActionChannelOrb, kOrbLightning, 1}, {kActionNone}}};
-
-const Card card_dualcast_plus = {
-    "Dualcast+", 0, 0, nullptr,
-    {.skill = 1, .starting = 1, .defect = 1},
-    {{kActionEvokeOrb, 2}, {kActionNone}}};
-const Card card_dualcast = {
-    "Dualcast", 1, 1, & card_dualcast_plus,
-    {.skill = 1, .starting = 1, .defect = 1},
-    {{kActionEvokeOrb, 2}, {kActionNone}}};
-
 #include "cards_status.hpp"
 #include "cards_colorless.hpp"
 #include "cards_ironclad.hpp"
 #include "cards_silent.hpp"
+#include "cards_defect.hpp"
 #include "cards_watcher.hpp"

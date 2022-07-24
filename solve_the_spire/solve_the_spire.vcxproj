@@ -156,6 +156,7 @@
     <ClInclude Include="buff_state.hpp" />
     <ClInclude Include="cards.hpp" />
     <ClInclude Include="cards_colorless.hpp" />
+    <ClInclude Include="cards_defect.hpp" />
     <ClInclude Include="cards_status.hpp" />
     <ClInclude Include="cards_ironclad.hpp" />
     <ClInclude Include="cards_watcher.hpp" />
