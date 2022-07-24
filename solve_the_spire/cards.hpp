@@ -70,8 +70,6 @@ struct Card {
     uint8_t base_cost;
     // current energy cost
     uint8_t cost;
-    // card flags
-    //uint32_t flags;
     // upgraded card version, or nullptr
     const Card * upgraded_version;
     // card flags

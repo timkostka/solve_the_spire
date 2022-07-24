@@ -25,7 +25,7 @@ constexpr bool print_completed_tree_to_file = true;
 
 // maximum nodes to print to file
 // (if tree is more than this many nodes, it will not be output to a file)
-constexpr uint32_t max_nodes_to_print = 800000;
+constexpr uint64_t max_nodes_to_print = 800000;
 
 // if true, makes probably-better choices when Miracle is in hand
 // (e.g. only play Miracle if we use the energy)
@@ -50,4 +50,4 @@ constexpr bool upgrades_strictly_better = true;
 constexpr bool always_avoid_dying = false;
 
 // when we reach this many nodes stored, stop storing the entire tree
-constexpr uint32_t max_nodes_to_store = 10000000;
+constexpr uint64_t max_nodes_to_store = 10000000;

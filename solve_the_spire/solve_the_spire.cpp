@@ -30,14 +30,6 @@
 
 */
 
-//struct TerminalStats {
-//    // number of terminal nodes below this
-//    uint32_t terminal_node_count;
-//    // 
-//};
-
-//bool profile = false;
-
 // get list of relics to compare
 
 // compare relics
@@ -525,25 +517,13 @@ int main(int argc, char ** argv) {
         //tree.fight_type = kFightAct1EliteLagavulin;
         //tree.fight_type = kFightTestOneLouse;
 
-        //start_node.deck.AddCard(card_demon_form);
+        //start_node.deck.AddCard(card_offering);
         //start_node.deck.AddCard(card_blind);
         //start_node.deck.AddCard(card_fiend_fire);
         //start_node.deck.AddCard(card_crush_joints);
         //start_node.deck.AddCard(card_through_violence);
 
     }
-
-    /*if (profile) {
-        Node profile_node;
-        start_node.hp = 0;
-        start_node.max_hp = 0;
-        start_node.deck.Clear();
-        start_node.relics = {0};
-        start_node.fight_type = kFightNone;
-        TreeStruct profile_tree(profile_node);
-        profile_tree.Expand();
-        printf("PROFILE: %s\n", profile_tree.GetProfileLine().c_str());
-    }*/
 
     if (start_node.deck.IsEmpty() || start_node.hp == 0 || tree.fight_type == kFightNone) {
         printf("ERROR: invalid settings\n");

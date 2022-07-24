@@ -230,23 +230,6 @@ struct Node {
         }
     }
 #endif
-    // return an objective function used to evaluate the best decision
-    // this function may only use information within this node--no information
-    // from children is allowed
-    double GetPathObjective() {
-        // DEBUG
-        return CalculateCompositeObjective() + layer * 1000;
-        double x = 5.0 * hp;
-        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
-            if (monster[i].Exists()) {
-                x += monster[i].max_hp - monster[i].hp;
-            }
-        }
-        // favor evaluating later turns
-        x += layer * 1000;
-        //x += turn * 1000;
-        return x;
-    }
     // return best possible ultimate objective function for a child of this node
     // (it's okay to overestimate, but not ideal)
     double GetMaxFinalObjective() const {
@@ -284,6 +267,24 @@ struct Node {
                 }
             }
         }
+    }
+    // return an objective function used to evaluate the best decision
+    // this function may only use information within this node--no information
+    // from children is allowed
+    double GetPathObjective() {
+        // DEBUG
+        // this is illegal, isn't it? Since it looks at children?
+        //return CalculateCompositeObjective() + 1000.0 * layer;
+        double x = 5.0 * hp;
+        for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
+            if (monster[i].Exists()) {
+                x += monster[i].max_hp - monster[i].hp;
+            }
+        }
+        // favor evaluating later turns
+        x += 1000.0 * layer;
+        //x += turn * 1000;
+        return x;
     }
     // initialize a start of fight node
     // (only things that need initialized outside of this are:
@@ -1072,7 +1073,7 @@ struct Node {
             assert(mob.Exists());
         }
         // do actions
-        for (uint32_t i = 0; i < MAX_CARD_ACTIONS; ++i) {
+        for (unsigned int i = 0; i < MAX_CARD_ACTIONS; ++i) {
             const auto & action = card.action[i];
             if (action.type == kActionNone) {
                 break;

@@ -117,12 +117,17 @@ std::list<MobLayout> GenerateAllMobs(FightEnum fight_type) {
     }
 }
 
+// sort nodes so that we know which to expand first
 struct PathObjectiveSort {
     bool operator() (Node * const first, Node * const second) const {
-        return (first->path_objective > second->path_objective) ||
+        return first->path_objective > second->path_objective ||
             (first->path_objective == second->path_objective &&
                 first < second);
-        //first->index < second->index); //first < second);
+        //return first->path_objective > second->path_objective ||
+        //    (first->path_objective == second->path_objective && 
+        //        (first->probability > second->probability ||
+        //        first->probability == second->probability &&
+        //        first < second));
     }
 };
 
@@ -1428,6 +1433,10 @@ struct TreeStruct {
                 } else if (this_node.pending_action[0].type == kActionDrawCards) {
                     DrawCards(this_node);
                     UpdateTree(&this_node);
+                    if (this_node.turn == 1) {
+                        printf("First hand has %u possible draws\n",
+                            (unsigned int) this_node.child.size());
+                    }
                 } else {
                     printf("ERROR: unexpected preaction type\n");
                     exit(1);
