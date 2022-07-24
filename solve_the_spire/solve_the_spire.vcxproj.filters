@@ -74,5 +74,8 @@
     <ClInclude Include="cards_silent.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="cards_watcher.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

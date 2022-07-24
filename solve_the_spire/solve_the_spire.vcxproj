@@ -158,6 +158,7 @@
     <ClInclude Include="cards_colorless.hpp" />
     <ClInclude Include="cards_status.hpp" />
     <ClInclude Include="cards_ironclad.hpp" />
+    <ClInclude Include="cards_watcher.hpp" />
     <ClInclude Include="card_collection.hpp" />
     <ClInclude Include="card_collection_map.hpp" />
     <ClInclude Include="defines.h" />
