@@ -52,6 +52,13 @@ struct Decision {
     }
 };
 
+struct NodeFlagStruct {
+    bool battle_done : 1;
+    bool tree_solved : 1;
+    bool last_card_attack : 1;
+    bool last_card_skill : 1;
+};
+
 // A Node contains all information about a game node.
 struct Node {
     // set to true at tree start if we have cards where the last skill played matters
@@ -74,15 +81,17 @@ struct Node {
     uint8_t block;
     // stance
     StanceEnum stance;
+    // flags
+    NodeFlagStruct flag;
     // true if battle is complete
-    // (battle is complete if all mobs are dead or if player is dead)
-    bool battle_done;
-    // true if tree below this is solved
-    bool tree_solved;
-    // true if last card was an attack
-    bool last_card_attack;
-    // true if last card was a skill
-    bool last_card_skill;
+    //// (battle is complete if all mobs are dead or if player is dead)
+    //bool battle_done;
+    //// true if tree below this is solved
+    //bool tree_solved;
+    //// true if last card was an attack
+    //bool last_card_attack;
+    //// true if last card was a skill
+    //bool last_card_skill;
 #ifdef USE_ORBS
     // focus
     uint8_t focus;
@@ -132,7 +141,7 @@ struct Node {
     }
     // return true if battle is complete
     bool IsBattleDone() const {
-        return battle_done;
+        return flag.battle_done;
     }
 #ifdef USE_ORBS
     // pop the rightmost orb
@@ -227,7 +236,7 @@ struct Node {
     void CalculateFinalObjective() {
         assert(IsBattleDone());
         assert(child.empty());
-        tree_solved = true;
+        flag.tree_solved = true;
         composite_objective = hp;
         if (hp == 0) {
             for (auto & mob : monster) {
@@ -267,8 +276,8 @@ struct Node {
         hand.Clear();
         exhaust_pile.Clear();
         draw_pile = deck;
-        last_card_attack = false;
-        last_card_skill = false;
+        flag.last_card_attack = false;
+        flag.last_card_skill = false;
 #ifdef USE_ORBS
         focus = 0;
 #endif
@@ -283,8 +292,8 @@ struct Node {
         energy = 0;
         parent = nullptr;
         buff.Reset();
-        tree_solved = false;
-        battle_done = false;
+        flag.tree_solved = false;
+        flag.battle_done = false;
         composite_objective = GetMaxFinalObjective();
         //path_objective = GetPathObjective();
     }
@@ -311,11 +320,11 @@ struct Node {
     }
     // return the number of unsolved nodes without children
     std::size_t CountUnsolvedLeaves() {
-        if (tree_solved) {
+        if (flag.tree_solved) {
             return 0;
         }
         if (child.empty()) {
-            return (tree_solved) ? 0 : 1;
+            return (flag.tree_solved) ? 0 : 1;
         }
         std::size_t count = 0;
         for (auto & child_ptr : child) {
@@ -340,7 +349,7 @@ struct Node {
     // result is (p, obj) where p is percentage of solved nodes
     std::pair<double, double> EstimateFinalObjective() const {
         // if tree is solved, we know exactly what objective was
-        if (tree_solved) {
+        if (flag.tree_solved) {
             return std::pair<double, double>(probability, probability * composite_objective);
         }
         std::pair<double, double> result(0.0, 0.0);
@@ -362,7 +371,7 @@ struct Node {
     // return completion percent of this node
     // 1.0 = all children done
     double GetSolvedCompletionPercent() const {
-        if (tree_solved) {
+        if (flag.tree_solved) {
             return 1.0;
         }
         if (HasChildren()) {
@@ -455,24 +464,24 @@ struct Node {
     void CalculateCompositeObjectiveOfChildren() {
         for (auto & child_ptr : child) {
             child_ptr->CalculateCompositeObjectiveOfChildren();
-            if (!child_ptr->tree_solved) {
+            if (!child_ptr->flag.tree_solved) {
                 child_ptr->composite_objective = child_ptr->CalculateCompositeObjective();
             }
         }
         // if not solved, calculate this composite objective
-        if (!tree_solved) {
+        if (!flag.tree_solved) {
             composite_objective = CalculateCompositeObjective();
         }
         // if all children solved, mark this solved
-        if (child.size() == 1 && child[0]->tree_solved) {
-            tree_solved = true;
+        if (child.size() == 1 && child[0]->flag.tree_solved) {
+            flag.tree_solved = true;
         }
     }
     // return true if all children are solved
     bool AreChildrenSolved() {
         assert(!child.empty());
         for (auto & it : child) {
-            if (!it->tree_solved) {
+            if (!it->flag.tree_solved) {
                 return false;
             }
         }
@@ -492,7 +501,7 @@ struct Node {
         if (relics.burning_blood) {
             Heal(6);
         }
-        battle_done = true;
+        flag.battle_done = true;
         // calculate objective
         CalculateFinalObjective();
     }
@@ -580,7 +589,7 @@ struct Node {
         pending_action[1].type = kActionDrawCards;
         pending_action[1].arg[0] = cards_to_draw;
         pending_action[1].arg[1] = 0;
-        battle_done = false;
+        flag.battle_done = false;
     }
     // convert to human readable string
     std::string ToString() const {
@@ -588,7 +597,7 @@ struct Node {
         ss << "Game(";
         bool first_item = true;
         ss.precision(6);
-        if (tree_solved) {
+        if (flag.tree_solved) {
             ss << "solved, ";
             ss << "obj=" << composite_objective;
             first_item = false;
@@ -741,7 +750,7 @@ struct Node {
     }
     // mark node as dead
     void Die() {
-        battle_done = true;
+        flag.battle_done = true;
         CalculateFinalObjective();
     }
     // lose X HP
@@ -1352,7 +1361,7 @@ struct Node {
                 case kActionLastCardAttack:
                 {
                     assert(last_card_attack_matters);
-                    if (!last_card_attack) {
+                    if (!flag.last_card_attack) {
                         ++i;
                     }
                     break;
@@ -1360,7 +1369,7 @@ struct Node {
                 case kActionLastCardSkill:
                 {
                     assert(last_card_skill_matters);
-                    if (!last_card_skill) {
+                    if (!flag.last_card_skill) {
                         ++i;
                     }
                     break;
@@ -1383,8 +1392,8 @@ struct Node {
                 }
             }
         }
-        last_card_attack = card.flag.attack;
-        last_card_skill = card.flag.skill;
+        flag.last_card_attack = card.flag.attack;
+        flag.last_card_skill = card.flag.skill;
     }
     // return true if this node is strictly worse or equal to the given node
     bool IsWorseOrEqual(const Node & that) const {
@@ -1423,11 +1432,11 @@ struct Node {
             return false;
         }
         if (last_card_attack_matters &&
-                last_card_attack != that.last_card_attack) {
+                flag.last_card_attack != that.flag.last_card_attack) {
             return false;
         }
         if (last_card_skill_matters &&
-                last_card_skill != that.last_card_skill) {
+                flag.last_card_skill != that.flag.last_card_skill) {
             return false;
         }
         if (stance != that.stance) {

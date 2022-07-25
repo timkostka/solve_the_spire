@@ -305,7 +305,10 @@ struct TreeStruct {
             }
         }
         // if this node has yet to be expanded, delete it from the optional list
-        if (!node.tree_solved && update_terminal && !node.IsTerminal() && node.child.empty()) {
+        if (!node.flag.tree_solved &&
+                update_terminal &&
+                !node.IsTerminal() &&
+                node.child.empty()) {
             auto it = std::find(optional_nodes.begin(), optional_nodes.end(), &node);
             if (it == optional_nodes.end()) {
                 node.parent->PrintTree();
@@ -353,7 +356,7 @@ struct TreeStruct {
             // update objectives for non-top nodes
             parent.composite_objective = node.composite_objective;
             assert(node.tree_solved);
-            parent.tree_solved = true;
+            parent.flag.tree_solved = true;
             node_ptr = &parent;
         }
         // delete other children
@@ -367,7 +370,7 @@ struct TreeStruct {
         assert(top_node.child.size() >= 1);
         top_node.child.resize(1);
         top_node.child[0] = node_ptr;
-        top_node.tree_solved = true;
+        top_node.flag.tree_solved = true;
         top_node.composite_objective = path_node.composite_objective;
         // add this node to the terminal list
         terminal_nodes.insert(&path_node);
@@ -448,7 +451,7 @@ struct TreeStruct {
                                 return;
                             }
                             // add to exhaust or discard pile
-                            if (!new_node.battle_done) {
+                            if (!new_node.flag.battle_done) {
                                 if (card.flag.exhausts) {
                                     new_node.exhaust_pile.AddCard(card_index);
                                 } else {
@@ -1084,7 +1087,7 @@ struct TreeStruct {
             return;
         }
         // if solved, delete all children
-        if (node.tree_solved) {
+        if (node.flag.tree_solved) {
             for (auto & child_ptr : node.child) {
                 DeleteNodeAndChildren(*child_ptr);
             }
@@ -1113,9 +1116,9 @@ struct TreeStruct {
                 auto & child = *node.child[0];
                 // if it's different, update and update parent
                 if (node.composite_objective != child.composite_objective ||
-                    node.tree_solved != child.tree_solved) {
+                    node.flag.tree_solved != child.flag.tree_solved) {
                     node.composite_objective = child.composite_objective;
-                    node.tree_solved = child.tree_solved;
+                    node.flag.tree_solved = child.flag.tree_solved;
                     DeleteChildren(node);
                     node_ptr = node.parent;
                     continue;
@@ -1130,7 +1133,7 @@ struct TreeStruct {
                 bool solved = node.AreChildrenSolved();
                 if (node.composite_objective != x || solved) {
                     node.composite_objective = x;
-                    node.tree_solved = solved;
+                    node.flag.tree_solved = solved;
                     DeleteChildren(node);
                     node_ptr = node.parent;
                     continue;
@@ -1149,7 +1152,7 @@ struct TreeStruct {
             double max_unsolved_objective = 0.0;
             for (auto & this_child_ptr : node.child) {
                 auto & this_child = *this_child_ptr;
-                if (this_child.tree_solved) {
+                if (this_child.flag.tree_solved) {
                     if (!solved_children ||
                         this_child.composite_objective > max_solved_objective) {
                         max_solved_objective = this_child.composite_objective;
@@ -1178,7 +1181,7 @@ struct TreeStruct {
                 // keep best child
                 node.child.resize(1);
                 node.child[0] = &child;
-                node.tree_solved = true;
+                node.flag.tree_solved = true;
                 assert(child.composite_objective == max_solved_objective);
                 node.composite_objective = max_solved_objective;
                 DeleteChildren(node);
@@ -1208,9 +1211,9 @@ struct TreeStruct {
                     assert(i > 0);
                     --i;
                     Node & this_child = *node.child[i];
-                    if ((this_child.tree_solved &&
+                    if ((this_child.flag.tree_solved &&
                         &this_child != max_solved_objective_ptr) ||
-                        (!this_child.tree_solved &&
+                        (!this_child.flag.tree_solved &&
                             this_child.composite_objective <= max_solved_objective)) {
                         DeleteNodeAndChildren(this_child);
                         node.child.erase(node.child.begin() + i);
@@ -1219,7 +1222,7 @@ struct TreeStruct {
             }
             // if path is now solved, mark it as such
             if (solved_children && node.child.size() == 1) {
-                node.tree_solved = true;
+                node.flag.tree_solved = true;
                 node.composite_objective = max_solved_objective;
                 DeleteChildren(node);
                 node_ptr = node.parent;
@@ -1246,7 +1249,7 @@ struct TreeStruct {
         }
         bool pass = true;
         // if tree is solved and it's a player choice node, it must have exactly one child
-        if (node.tree_solved && !node.IsBattleDone() && !node.HasPendingActions()) {
+        if (node.flag.tree_solved && !node.IsBattleDone() && !node.HasPendingActions()) {
             if (node.child.size() != 1) {
                 pass = false;
                 node.PrintTree();
@@ -1291,7 +1294,7 @@ struct TreeStruct {
         //        pass = false;
         //    }
         //}
-        if (!node.HasPendingActions() && node.tree_solved) {
+        if (!node.HasPendingActions() && node.flag.tree_solved) {
             assert(node.child.size() == 1);
         }
         double p = 0.0;
@@ -1317,16 +1320,16 @@ struct TreeStruct {
         if (!node.child.empty()) {
             bool children_solved = true;
             for (auto & it : node.child) {
-                if (!it->tree_solved) {
+                if (!it->flag.tree_solved) {
                     children_solved = false;
                 }
             }
-            if (node.tree_solved && !children_solved) {
+            if (node.flag.tree_solved && !children_solved) {
                 node.PrintTree();
                 printf("ERROR: incorrectly marked solved\n");
                 pass = false;
             }
-            if (!node.tree_solved && children_solved) {
+            if (!node.flag.tree_solved && children_solved) {
                 node.PrintTree();
                 printf("ERROR: incorrectly not marked solved\n");
                 pass = false;
