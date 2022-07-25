@@ -33,7 +33,7 @@
 // get list of relics to compare
 
 // compare relics
-void CompareRelics(const Node & top_node) {
+void CompareRelics(const TreeStruct & tree, const Node & top_node) {
     std::vector<std::pair<std::string, RelicStruct>> relic_list;
     // add base case
     relic_list.push_back(std::pair<std::string, RelicStruct>("base", RelicStruct()));
@@ -85,8 +85,9 @@ void CompareRelics(const Node & top_node) {
     for (auto & this_list : relic_list) {
         Node this_top_node = top_node;
         this_top_node.relics = this_list.second;
-        TreeStruct tree(this_top_node);
-        tree.Expand();
+        TreeStruct this_tree(this_top_node);
+        this_tree.fight_type = tree.fight_type;
+        this_tree.Expand();
         if (base) {
             outFile << this_list.first << ": " << this_top_node.composite_objective << std::endl;
             base_objective = this_top_node.composite_objective;
@@ -512,7 +513,7 @@ int main(int argc, char ** argv) {
         //start_node.deck.RemoveCard(card_vigilance.GetIndex());
 
         start_node.hp = start_node.max_hp * 9 / 10;
-        //tree.fight_type = kFightAct1EliteGremlinNob;
+        tree.fight_type = kFightAct1EliteGremlinNob;
         //tree.fight_type = kFightAct1EasyCultist;
         //tree.fight_type = kFightAct1EasyJawWorm;
         //tree.fight_type = kFightAct1EasyLouses;
@@ -534,12 +535,11 @@ int main(int argc, char ** argv) {
 
     start_node.InitializeStartingNode();
 
-    //TreeStruct tree(start_node);
     tree.Expand();
 
     //CompareUpgrades(start_node);
 
-    //CompareRelics(start_node);
+    //CompareRelics(tree, start_node);
 
     //CompareCards(start_node, {0}, {0});
     //CompareWatcherCards(start_node);

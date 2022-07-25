@@ -52,10 +52,16 @@ struct Decision {
     }
 };
 
+// bitfield for holding some Node flags
 struct NodeFlagStruct {
+    // true if battle is complete
+    // (battle is complete if all mobs are dead or if player is dead)
     bool battle_done : 1;
+    // true if tree below this is solved
     bool tree_solved : 1;
+    // true if last card played was an attack
     bool last_card_attack : 1;
+    // true if last card played was a skill
     bool last_card_skill : 1;
 };
 
@@ -81,17 +87,8 @@ struct Node {
     uint8_t block;
     // stance
     StanceEnum stance;
-    // flags
+    // variable flags
     NodeFlagStruct flag;
-    // true if battle is complete
-    //// (battle is complete if all mobs are dead or if player is dead)
-    //bool battle_done;
-    //// true if tree below this is solved
-    //bool tree_solved;
-    //// true if last card was an attack
-    //bool last_card_attack;
-    //// true if last card was a skill
-    //bool last_card_skill;
 #ifdef USE_ORBS
     // focus
     uint8_t focus;
@@ -101,7 +98,7 @@ struct Node {
     std::vector<OrbStruct> orbs;
 #endif
     // pointer to deck
-    CardCollectionPtr deck;
+    static CardCollectionPtr deck;
     // hand
     CardCollectionPtr hand;
     // draw pile
@@ -110,7 +107,7 @@ struct Node {
     CardCollectionPtr discard_pile;
     // exhausted pile
     CardCollectionPtr exhaust_pile;
-    // link to parent node
+    // pointer to parent node
     Node * parent;
     // monsters (in order of action)
     Monster monster[MAX_MOBS_PER_NODE];
@@ -120,8 +117,6 @@ struct Node {
     BuffState buff;
     // relic state
     RelicStruct relics;
-    // list of children
-    vector<Node *> child;
     // probability of getting to this node if we make the right choices
     double probability;
     // decision at parent node in order to get to this node
@@ -130,6 +125,8 @@ struct Node {
     // maximum possible composite objective
     // (if tree_solved=true, this is the final composite objective)
     double composite_objective;
+    // list of children
+    vector<Node *> child;
     // add a single child node with 100% probability
     void AddChild(Node & child_node) {
         child.push_back(&child_node);
@@ -211,7 +208,7 @@ struct Node {
     // return best possible ultimate objective function for a child of this node
     // (it's okay to overestimate, but not ideal)
     double GetMaxFinalObjective() const {
-        assert(!battle_done);
+        assert(!flag.battle_done);
         // TODO: factor in Bandage Up
         if (IsBattleDone()) {
             return hp;
@@ -489,7 +486,7 @@ struct Node {
     }
     // finish battle in which player is still alive
     void FinishBattle() {
-        assert(!battle_done);
+        assert(!flag.battle_done);
         assert(hp > 0);
         // no mobs should be present
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
@@ -1493,3 +1490,6 @@ std::stringstream & operator<< (std::stringstream & out, const Node & node) {
 
 bool Node::last_card_skill_matters = false;
 bool Node::last_card_attack_matters = false;
+
+// emtpy deck
+CardCollectionPtr Node::deck = CardCollectionPtr();

@@ -328,7 +328,7 @@ struct TreeStruct {
     // at the given node
     // update composite_object/tree_solved of nodes below top node
     void SelectTerminalDecisionPath(Node & top_node, Node & path_node) {
-        assert(path_node.tree_solved);
+        assert(path_node.flag.tree_solved);
         assert(path_node.IsTerminal());
         Node * node_ptr = &path_node;
         while (node_ptr->parent != &top_node) {
@@ -355,7 +355,7 @@ struct TreeStruct {
             }
             // update objectives for non-top nodes
             parent.composite_objective = node.composite_objective;
-            assert(node.tree_solved);
+            assert(node.flag.tree_solved);
             parent.flag.tree_solved = true;
             node_ptr = &parent;
         }
@@ -1108,7 +1108,7 @@ struct TreeStruct {
             auto & node = *node_ptr;
             //node_ptr->PrintTree(); // DEBUG
             // doesn't make sense to call this on a solved node
-            assert(!node.tree_solved);
+            assert(!node.flag.tree_solved);
             // should have children
             assert(!node.child.empty());
             // if only one child, objective is the same as that child
