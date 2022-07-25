@@ -117,15 +117,6 @@ std::list<MobLayout> GenerateAllMobs(FightEnum fight_type) {
     }
 }
 
-// sort nodes so that we know which to expand first
-struct PathObjectiveSort {
-    bool operator() (Node * const first, Node * const second) const {
-        return first->path_objective < second->path_objective ||
-            (first->path_objective == second->path_objective &&
-                first < second);
-    }
-};
-
 // hold a structure for solving for optimal play decisions
 struct TreeStruct {
     // if true, save all nodes, else prune solved nodes as much as possible
@@ -145,7 +136,6 @@ struct TreeStruct {
     // number of nodes which were expanded
     std::size_t expanded_node_count;
     // nodes which need expanded after a path is formed
-    //std::set<Node *, PathObjectiveSort> optional_nodes;
     std::vector<Node *> optional_nodes;
     // list of terminal nodes
     // (a terminal node is a node where the battle is over)
@@ -179,10 +169,7 @@ struct TreeStruct {
     }
     // add an optional node
     void AddOptionalNode(Node & node) {
-        // should have already been evaluated
-        assert(node.path_objective == node.GetPathObjective());
         // add it
-        //optional_nodes.insert(&node);
         optional_nodes.push_back(&node);
     }
     // create a new node and return a reference to it
@@ -205,13 +192,11 @@ struct TreeStruct {
             ++created_node_count;
         }
         Node & new_node = *new_node_ptr;
-        //new_node.index = next_index;
         new_node.child.clear();
         new_node.parent = &node;
         ++new_node.layer;
         node.child.push_back(&new_node);
         if (add_to_optional) {
-            new_node.path_objective = new_node.GetPathObjective();
             AddOptionalNode(new_node);
         }
         return new_node;
@@ -261,12 +246,6 @@ struct TreeStruct {
             }
         }
     }
-    // sort for possible hands, least probable first
-    static bool MyDrawCardSort(
-            const std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>> & one,
-            const std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>> & two) {
-        return one.first < two.first || one.first == two.first && &one < &two;
-    }
     // draw cards
     void DrawCards(Node & node) {
         //assert(node.cards_to_draw > 0);
@@ -292,18 +271,14 @@ struct TreeStruct {
         }
         // if there aren't any cards to draw, then don't
         if (to_draw == 0) {
-            // add new node
+            // we have no cards to draw and/or our hand is full
             Node & new_node = CreateChild(node, true);
             new_node.PopPendingAction();
-            // we have no cards to draw and/or our hand is full
-            //new_node.cards_to_draw = 0;
-            //new_node.player_choice = true;
             return;
         }
         // else draw all cards we can and add each as a child node
         auto choices = node.draw_pile.Select(to_draw);
-        std::sort(choices.begin(), choices.end(), MyDrawCardSort);
-        for (const auto & choice : choices) {
+        for (const auto & choice : *choices) {
             // add new node
             Node & new_node = CreateChild(node, true);
             if (to_draw == new_node.pending_action[0].arg[0]) {
@@ -331,7 +306,6 @@ struct TreeStruct {
         }
         // if this node has yet to be expanded, delete it from the optional list
         if (!node.tree_solved && update_terminal && !node.IsTerminal() && node.child.empty()) {
-            //auto it = optional_nodes.find(&node);
             auto it = std::find(optional_nodes.begin(), optional_nodes.end(), &node);
             if (it == optional_nodes.end()) {
                 node.parent->PrintTree();
@@ -706,7 +680,6 @@ struct TreeStruct {
                 continue;
             }
             Node & this_node = *ending_node[i];
-            this_node.path_objective = this_node.GetPathObjective();
             if (!this_node.IsBattleDone()) {
                 AddOptionalNode(this_node);
             } else {
@@ -759,7 +732,6 @@ struct TreeStruct {
             }
             new_node.StartBattle();
             new_node.composite_objective = new_node.GetMaxFinalObjective();
-            new_node.path_objective = new_node.GetPathObjective();
             AddOptionalNode(new_node);
         }
     }
@@ -1373,9 +1345,8 @@ struct TreeStruct {
         if (normalize_mob_variations) {
             std::cout << "Mob variations in HP and stats are normalized.\n";
         }
+        printf("sizeof(Node) = %u\n", (unsigned int) sizeof(Node));
         optional_nodes.clear();
-        top_node_ptr->path_objective = top_node_ptr->GetPathObjective();
-        //optional_nodes.insert(top_node_ptr);
         optional_nodes.push_back(top_node_ptr);
         expanded_node_count = 0;
         std::clock_t next_update = clock();

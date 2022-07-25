@@ -254,13 +254,30 @@ struct CardCollectionPtr {
         }
         return true;
     }
+    // sort by least probable first
+    static bool LeastProbableSort(
+            const std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>> & one,
+            const std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>> & two) {
+        return one.first < two.first;
+    }
     // return all combination of selecting X cards at random without replacement
     // results are returned as (probability, cards_selected, cards_left)
-    std::vector<std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>>>
+    std::vector<std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>>> *
             Select(card_count_t count) const {
+        // cache results
+        static std::map<const std::pair<const CardCollectionNode * const, card_count_t>, std::vector<std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>>> *>
+            selection_cache;
+        // look for cached result
+        const std::pair<const CardCollectionNode * const, card_count_t>
+            key(node_ptr, count);
+        auto it = selection_cache.find(key);
+        if (it != selection_cache.end()) {
+            return it->second;
+        }
         // hold results
         const auto & card = node_ptr->collection.card;
-        std::vector<std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>>> result;
+        std::vector<std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>>> * result;
+        result = new std::vector<std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>>>();
         card_count_t unique_card_count = (card_count_t) card.size();
         // get number of cards
         card_count_t card_count = node_ptr->collection.total;
@@ -288,10 +305,11 @@ struct CardCollectionPtr {
                 ++active_index;
             }
         }
+        bool done = false;
         while (true) {
             // add this list
-            result.push_back(std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>>());
-            auto & this_result = *result.rbegin();
+            result->push_back(std::pair<double, std::pair<CardCollectionPtr, CardCollectionPtr>>());
+            auto & this_result = *result->rbegin();
             CardCollectionPtr & selected = this_result.second.first;
             CardCollectionPtr & remaining = this_result.second.second;
             for (size_t i = 0; i < unique_card_count; ++i) {
@@ -313,7 +331,7 @@ struct CardCollectionPtr {
             // iterate
             if (active_index == unique_card_count - 1) {
                 if (active_index == 0) {
-                    return result;
+                    break;
                 }
                 card_index_t need_to_place = item[active_index];
                 item[active_index] = 0;
@@ -328,13 +346,18 @@ struct CardCollectionPtr {
                         need_to_place += item[active_index];
                         item[active_index] = 0;
                         if (active_index == 0) {
-                            return result;
+                            done = true;
+                            break;
                         }
                     }
                     if (active_index == 0) {
-                        return result;
+                        done = true;
+                        break;
                     }
                     --active_index;
+                }
+                if (done) {
+                    break;
                 }
                 assert(active_index != 255);
                 while (need_to_place > 0) {
@@ -350,6 +373,12 @@ struct CardCollectionPtr {
                 ++item[active_index];
             }
         }
+        // sort by lease probable first
+        std::sort(result->begin(), result->end(), LeastProbableSort);
+        // cache result
+        selection_cache[key] = result;
+        // return result
+        return result;
     }
 };
 

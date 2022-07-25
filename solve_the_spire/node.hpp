@@ -121,8 +121,6 @@ struct Node {
     // maximum possible composite objective
     // (if tree_solved=true, this is the final composite objective)
     double composite_objective;
-    // path objective (used to sort optional nodes for evaluating)
-    double path_objective;
     // add a single child node with 100% probability
     void AddChild(Node & child_node) {
         child.push_back(&child_node);
@@ -288,7 +286,7 @@ struct Node {
         tree_solved = false;
         battle_done = false;
         composite_objective = GetMaxFinalObjective();
-        path_objective = GetPathObjective();
+        //path_objective = GetPathObjective();
     }
     // pop the first pending action
     void PopPendingAction() {

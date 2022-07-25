@@ -50,6 +50,8 @@ struct BaseMonster {
 struct Monster {
     // pointer to base monster, or nullptr for no monster
     const BaseMonster * base;
+    // buffs
+    BuffState buff;
     // hp
     uint16_t hp;
     // max hp
@@ -58,8 +60,6 @@ struct Monster {
     uint8_t last_intent[3];
     // block amount
     uint8_t block;
-    // buffs
-    BuffState buff;
     // default constructor (no mob)
     Monster() : base(nullptr), hp(0), last_intent{0}, block(0) {
     }
