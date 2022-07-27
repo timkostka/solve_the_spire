@@ -16,6 +16,7 @@ enum BuffType : uint8_t {
     kBuffEnrage,
     kBuffMetallicize,
     kBuffCurlUp,
+    kBuffRegenerate,
     // at end of turn, decrease strength by this amount and zero this value
     kBuffStrengthDown,
     kBuffPoison,
@@ -43,6 +44,7 @@ const BuffType positive_buffs[] = {
     kBuffBerserk,
     kBuffDemonForm,
     kBuffNoxiousFumes,
+    kBuffRegenerate,
 };
 
 // list of negative buffs

@@ -509,7 +509,7 @@ int main(int argc, char ** argv) {
         //start_node.deck.AddCard(card_bash_plus);
         //start_node.deck.RemoveCard(card_bash);
         //start_node.deck.AddCard(card_armaments_plus);
-        //start_node.deck.AddCard(card_demon_form);
+        start_node.deck.AddCard(card_demon_form);
         //start_node.deck.AddCard(card_offering);
         //start_node.deck.AddCard(card_sucker_punch);
         //start_node.deck.RemoveCard(card_strike);
@@ -522,7 +522,8 @@ int main(int argc, char ** argv) {
 
         //start_node.hp = 80;
         //start_node.max_hp = 80;
-        tree.fight_type = kFightAct1EliteGremlinNob;
+        //tree.fight_type = kFightAct1EliteGremlinNob;
+        tree.fight_type = kFightAct1BurningEliteGremlinNob;
         //tree.fight_type = kFightAct1EasyCultist;
         //tree.fight_type = kFightAct1EasyJawWorm;
         //tree.fight_type = kFightAct1EasyLouses;

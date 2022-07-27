@@ -693,6 +693,12 @@ struct Node {
             if (monster[i].buff[kBuffStrength]) {
                 ss << ", " << (int) monster[i].buff[kBuffStrength] << "xStr";
             }
+            if (monster[i].buff[kBuffMetallicize]) {
+                ss << ", " << (int) monster[i].buff[kBuffMetallicize] << "xMetallicize";
+            }
+            if (monster[i].buff[kBuffRegenerate]) {
+                ss << ", " << (int) monster[i].buff[kBuffRegenerate] << "xRegen";
+            }
             if (monster[i].buff[kBuffVulnerable]) {
                 ss << ", " << (int) monster[i].buff[kBuffVulnerable] << "xVuln";
             }
@@ -940,6 +946,12 @@ struct Node {
             mob.buff.Cycle();
             if (mob.buff[kBuffMetallicize]) {
                 mob.Block(mob.buff[kBuffMetallicize]);
+            }
+            if (mob.buff[kBuffRegenerate]) {
+                mob.hp += mob.buff[kBuffRegenerate];
+                if (mob.hp > mob.max_hp) {
+                    mob.hp = mob.max_hp;
+                }
             }
         }
         // start new turn

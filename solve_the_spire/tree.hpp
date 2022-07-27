@@ -708,6 +708,9 @@ struct TreeStruct {
         if (fight_map[fight_type].base_mob != nullptr) {
             mob_layouts = GenerateFightSingleMob(
                 *fight_map[fight_type].base_mob);
+            if (fight_map[fight_type].burning_elite) {
+                mob_layouts = ApplyBurningEliteBuffs(mob_layouts, 1);
+            }
         } else {
             mob_layouts = fight_map[fight_type].generation_function();
         }
