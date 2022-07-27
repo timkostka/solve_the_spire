@@ -972,14 +972,17 @@ struct TreeStruct {
         if (normalize_mob_variations) {
             printf("- Variations in mob HP and stats are normalized\n");
         }
-        printf("\nResult stats:\n");
-        printf("- Expected final HP of %.6g\n", top_node_ptr->hp + expected_hp_delta);
-        printf("- Expected HP change is %+.6g\n", expected_hp_delta);
-        printf("- Min/max HP change of %+d and %+d\n",
-            hp_delta.begin()->first, hp_delta.rbegin()->first);
+        printf("\nResult summary:\n");
+        printf("- Expected final HP of %.6g (change of %+.6g)\n", top_node_ptr->hp + expected_hp_delta, expected_hp_delta);
+        //printf("- Expected HP change is %+.6g\n", expected_hp_delta);
+        printf("- Min/max final HP of %d to %d (change of %+d to %+d)\n",
+            top_node_ptr->hp + hp_delta.begin()->first,
+            top_node_ptr->hp + hp_delta.rbegin()->first,
+            hp_delta.begin()->first,
+            hp_delta.rbegin()->first);
         int16_t low_roll_hp = 32767;
         {
-            double x = 0.05;
+            double x = 0.1;
             auto it = hp_delta.begin();
             while (it != hp_delta.end() && x > 0) {
                 low_roll_hp = it->first;
@@ -989,7 +992,7 @@ struct TreeStruct {
         }
         int16_t high_roll_hp = 32767;
         {
-            double x = 0.05;
+            double x = 0.1;
             auto it = hp_delta.rbegin();
             while (it != hp_delta.rend() && x > 0) {
                 high_roll_hp = it->first;
@@ -997,11 +1000,10 @@ struct TreeStruct {
                 ++it;
             }
         }
-        printf("- Low-roll (5%%) and high-roll (95%%) HP change of %+d and %+d\n",
-            low_roll_hp, high_roll_hp);
-        // - Expected chance to die is 1% with 24.1 remaining monster HP
-        //printf("- Expected HP change is %+g (min %+d, max %+d)\n",
-        //    expected_hp_delta, hp_delta.begin()->first, hp_delta.rbegin()->first);
+        printf("- Low-roll (worst 10%%) final HP of %d (change of %+d)\n",
+            top_node_ptr->hp + low_roll_hp, low_roll_hp);
+        printf("- High-roll (best 10%%) final HP of %d (change of %+d)\n",
+            top_node_ptr->hp + high_roll_hp, high_roll_hp);
         printf("- Expected fight length is %.3g turns (min %u, max %u)\n",
             expected_turn_count, turn.begin()->first, turn.rbegin()->first);
         if (death_chance > 0.0) {
@@ -1011,6 +1013,16 @@ struct TreeStruct {
         }
         if (no_loss_chance > 0.0) {
             printf("- Chance not to lose life is %.3g%%\n", 100 * no_loss_chance);
+        }
+        // print details on expected number of turns
+        printf("\nFight length stats:\n");
+        for (auto & pair : turn) {
+            printf("- %d turns: %.3g%%\n", (int) pair.first, pair.second * 100.0);
+        }
+        printf("\nFinal HP stats:\n");
+        for (auto & pair : hp_delta) {
+            int final_hp = top_node_ptr->hp + pair.first;
+            printf("- %d HP: %.3g%%\n", final_hp, pair.second * 100.0);
         }
         printf("\nCards stats:\n");
         std::size_t max_card_name_length = 0;
