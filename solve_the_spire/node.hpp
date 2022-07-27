@@ -124,7 +124,7 @@ struct Node {
     Decision parent_decision;
     // maximum possible composite objective
     // (if tree_solved=true, this is the final composite objective)
-    double composite_objective;
+    double objective;
     // list of children
     vector<Node *> child;
     // add a single child node with 100% probability
@@ -234,11 +234,11 @@ struct Node {
         assert(IsBattleDone());
         assert(child.empty());
         flag.tree_solved = true;
-        composite_objective = hp;
+        objective = hp;
         if (hp == 0) {
             for (auto & mob : monster) {
                 if (mob.Exists()) {
-                    composite_objective -= mob.hp / 1000.0;
+                    objective -= mob.hp / 1000.0;
                 }
             }
         }
@@ -249,7 +249,7 @@ struct Node {
     double GetPathObjective() {
         // DEBUG
         // this is illegal, isn't it? Since it looks at children?
-        //return CalculateCompositeObjective() + 1000.0 * layer;
+        //return CalculateObjective() + 1000.0 * layer;
         double x = 5.0 * hp;
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             if (monster[i].Exists()) {
@@ -291,7 +291,7 @@ struct Node {
         buff.Reset();
         flag.tree_solved = false;
         flag.battle_done = false;
-        composite_objective = GetMaxFinalObjective();
+        objective = GetMaxFinalObjective();
         //path_objective = GetPathObjective();
     }
     // pop the first pending action
@@ -347,7 +347,7 @@ struct Node {
     std::pair<double, double> EstimateFinalObjective() const {
         // if tree is solved, we know exactly what objective was
         if (flag.tree_solved) {
-            return std::pair<double, double>(probability, probability * composite_objective);
+            return std::pair<double, double>(probability, probability * objective);
         }
         std::pair<double, double> result(0.0, 0.0);
         if (HasChildren()) {
@@ -414,38 +414,38 @@ struct Node {
     }
     // return an estimate for the composite objective by looking at direct children
     // and also update solved state
-    double CalculateCompositeObjective() const {
+    double CalculateObjective() const {
         // if no children, just get max
         if (child.empty()) {
-            return composite_objective;
+            return objective;
             //return GetMaxFinalObjective();
         }
         // if one child, just return objective from that child
         if (child.size() == 1) {
-            return child[0]->composite_objective;
+            return child[0]->objective;
         }
         // if children and players choice, return max
         if (!HasPendingActions()) {
-            double max_objective = child[0]->composite_objective;
+            double max_objective = child[0]->objective;
             for (std::size_t i = 1; i < child.size(); ++i) {
-                if (child[i]->composite_objective > max_objective) {
-                    max_objective = child[i]->composite_objective;
+                if (child[i]->objective > max_objective) {
+                    max_objective = child[i]->objective;
                 }
             }
             return max_objective;
         } else {
             // if not player choice, then return probability adjusted composite
             double total_probability = child[0]->probability;
-            double objective = child[0]->probability * child[0]->composite_objective;
-            double max_objective = child[0]->composite_objective;
+            double objective = child[0]->probability * child[0]->objective;
+            double max_objective = child[0]->objective;
             double min_objective = max_objective;
             for (std::size_t i = 1; i < child.size(); ++i) {
                 total_probability += child[i]->probability;
-                objective += child[i]->probability * child[i]->composite_objective;
-                if (child[i]->composite_objective > max_objective) {
-                    max_objective = child[i]->composite_objective;
-                } else if (child[i]->composite_objective < min_objective) {
-                    min_objective = child[i]->composite_objective;
+                objective += child[i]->probability * child[i]->objective;
+                if (child[i]->objective > max_objective) {
+                    max_objective = child[i]->objective;
+                } else if (child[i]->objective < min_objective) {
+                    min_objective = child[i]->objective;
                 }
             }
             // to prevent roundoff errors from propagating
@@ -458,16 +458,16 @@ struct Node {
         }
     }
     // evaluate the composite objective of this node and all its descendents
-    void CalculateCompositeObjectiveOfChildren() {
+    void CalculateObjectiveOfChildren() {
         for (auto & child_ptr : child) {
-            child_ptr->CalculateCompositeObjectiveOfChildren();
+            child_ptr->CalculateObjectiveOfChildren();
             if (!child_ptr->flag.tree_solved) {
-                child_ptr->composite_objective = child_ptr->CalculateCompositeObjective();
+                child_ptr->objective = child_ptr->CalculateObjective();
             }
         }
         // if not solved, calculate this composite objective
         if (!flag.tree_solved) {
-            composite_objective = CalculateCompositeObjective();
+            objective = CalculateObjective();
         }
         // if all children solved, mark this solved
         if (child.size() == 1 && child[0]->flag.tree_solved) {
@@ -596,10 +596,10 @@ struct Node {
         ss.precision(6);
         if (flag.tree_solved) {
             ss << "solved, ";
-            ss << "obj=" << composite_objective;
+            ss << "obj=" << objective;
             first_item = false;
         } else {
-            ss << "maxobj=" << composite_objective;
+            ss << "maxobj=" << objective;
             first_item = false;
         }
         ss.precision(3);
@@ -1395,7 +1395,7 @@ struct Node {
     // return true if this node is strictly worse or equal to the given node
     bool IsWorseOrEqual(const Node & that) const {
         if (that.IsBattleDone() &&
-            composite_objective <= that.composite_objective) {
+            objective <= that.objective) {
             return true;
         }
         if (IsBattleDone()) {

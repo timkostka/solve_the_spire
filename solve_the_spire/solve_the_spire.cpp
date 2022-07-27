@@ -89,13 +89,13 @@ void CompareRelics(const TreeStruct & tree, const Node & top_node) {
         this_tree.fight_type = tree.fight_type;
         this_tree.Expand();
         if (base) {
-            outFile << this_list.first << ": " << this_top_node.composite_objective << std::endl;
-            base_objective = this_top_node.composite_objective;
+            outFile << this_list.first << ": " << this_top_node.objective << std::endl;
+            base_objective = this_top_node.objective;
             base = false;
         } else {
-            outFile << this_list.first << ": " << this_top_node.composite_objective;
+            outFile << this_list.first << ": " << this_top_node.objective;
             outFile << " (";
-            double delta = this_top_node.composite_objective - base_objective;
+            double delta = this_top_node.objective - base_objective;
             if (delta > 0) {
                 outFile << "+";
             }
@@ -140,13 +140,13 @@ void CompareIroncladCards(const Node & top_node) {
         TreeStruct tree(this_top_node);
         tree.Expand();
         if (this_card_ptr == nullptr) {
-            outFile << "base: " << this_top_node.composite_objective << std::endl;
-            base_objective = this_top_node.composite_objective;
+            outFile << "base: " << this_top_node.objective << std::endl;
+            base_objective = this_top_node.objective;
             base = false;
         } else {
-            outFile << this_card_ptr->name << ": " << this_top_node.composite_objective;
+            outFile << this_card_ptr->name << ": " << this_top_node.objective;
             outFile << " (";
-            double delta = this_top_node.composite_objective - base_objective;
+            double delta = this_top_node.objective - base_objective;
             if (delta > 0) {
                 outFile << "+";
             }
@@ -196,13 +196,13 @@ void CompareCards(
         TreeStruct tree(this_top_node);
         tree.Expand();
         if (this_card_ptr == nullptr) {
-            outFile << "base: " << this_top_node.composite_objective << std::endl;
-            base_objective = this_top_node.composite_objective;
+            outFile << "base: " << this_top_node.objective << std::endl;
+            base_objective = this_top_node.objective;
             base = false;
         } else {
-            outFile << this_card_ptr->name << ": " << this_top_node.composite_objective;
+            outFile << this_card_ptr->name << ": " << this_top_node.objective;
             outFile << " (";
-            double delta = this_top_node.composite_objective - base_objective;
+            double delta = this_top_node.objective - base_objective;
             if (delta > 0) {
                 outFile << "+";
             }
@@ -249,13 +249,13 @@ void CompareWatcherCards(const Node & top_node) {
         TreeStruct tree(this_top_node);
         tree.Expand();
         if (this_card_ptr == nullptr) {
-            outFile << "base: " << this_top_node.composite_objective << std::endl;
-            base_objective = this_top_node.composite_objective;
+            outFile << "base: " << this_top_node.objective << std::endl;
+            base_objective = this_top_node.objective;
             base = false;
         } else {
-            outFile << this_card_ptr->name << ": " << this_top_node.composite_objective;
+            outFile << this_card_ptr->name << ": " << this_top_node.objective;
             outFile << " (";
-            double delta = this_top_node.composite_objective - base_objective;
+            double delta = this_top_node.objective - base_objective;
             if (delta > 0) {
                 outFile << "+";
             }
@@ -293,14 +293,14 @@ void CompareUpgrades(const Node & top_node) {
         TreeStruct tree(this_top_node);
         tree.Expand();
         if (index == 65535) {
-            outFile << "base: " << this_top_node.composite_objective << std::endl;
-            base_objective = this_top_node.composite_objective;
+            outFile << "base: " << this_top_node.objective << std::endl;
+            base_objective = this_top_node.objective;
             base = false;
         } else {
             outFile << card_map[index]->upgraded_version->name << ": " <<
-                this_top_node.composite_objective;
+                this_top_node.objective;
             outFile << " (";
-            double delta = this_top_node.composite_objective - base_objective;
+            double delta = this_top_node.objective - base_objective;
             if (delta > 0) {
                 outFile << "+";
             }
@@ -486,7 +486,7 @@ int main(int argc, char ** argv) {
             }
         }
     } else {
-        ProcessArgument(tree, "--fight=gremlin_nob");
+        //ProcessArgument(tree, "--fight=gremlin_nob");
         //ProcessArgument(tree, "--fight=lagavulin");
         //ProcessArgument(tree, "--fight=blue_slaver");
         //ProcessArgument(tree, "--fight=jaw_worm");
@@ -495,13 +495,19 @@ int main(int argc, char ** argv) {
         //ProcessArgument(tree, "--character=silent");
         //ProcessArgument(tree, "--character=defect");
         //ProcessArgument(tree, "--character=watcher");
-        //start_node.deck.AddCard(card_immolate);
+        //start_node.deck.AddCard(card_flash_of_steel);
         //start_node.deck.AddCard(card_ghostly_armor);
         //start_node.deck.AddCard(card_impervious);
         //start_node.deck.AddCard(card_pummel);
         //start_node.deck.AddCard(card_crush_joints);
         //start_node.deck.AddCard(card_pommel_strike);
         //start_node.deck.AddCard(card_strike_plus);
+        //start_node.deck.RemoveCard(card_strike);
+        //start_node.deck.AddCard(card_defend_plus, 4);
+        //start_node.deck.RemoveCard(card_defend, 4);
+        //start_node.deck.UpgradeAll();
+        //start_node.deck.AddCard(card_bash_plus);
+        //start_node.deck.RemoveCard(card_bash);
         //start_node.deck.AddCard(card_armaments_plus);
         //start_node.deck.AddCard(card_demon_form);
         //start_node.deck.AddCard(card_offering);
@@ -513,6 +519,9 @@ int main(int argc, char ** argv) {
         //start_node.deck.RemoveCard(card_vigilance.GetIndex());
 
         start_node.hp = start_node.max_hp * 9 / 10;
+
+        //start_node.hp = 80;
+        //start_node.max_hp = 80;
         tree.fight_type = kFightAct1EliteGremlinNob;
         //tree.fight_type = kFightAct1EasyCultist;
         //tree.fight_type = kFightAct1EasyJawWorm;

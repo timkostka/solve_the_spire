@@ -221,7 +221,7 @@ struct TreeStruct {
             Node & new_node = CreateChild(node, true);
             new_node.PopPendingAction();
             //new_node.generate_mob_intents = false;
-            new_node.composite_objective = new_node.GetMaxFinalObjective();
+            new_node.objective = new_node.GetMaxFinalObjective();
             for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
                 if (!node.monster[i].Exists()) {
                     continue;
@@ -354,7 +354,7 @@ struct TreeStruct {
                 assert(parent.child[0] == node_ptr);
             }
             // update objectives for non-top nodes
-            parent.composite_objective = node.composite_objective;
+            parent.objective = node.objective;
             assert(node.flag.tree_solved);
             parent.flag.tree_solved = true;
             node_ptr = &parent;
@@ -371,7 +371,7 @@ struct TreeStruct {
         top_node.child.resize(1);
         top_node.child[0] = node_ptr;
         top_node.flag.tree_solved = true;
-        top_node.composite_objective = path_node.composite_objective;
+        top_node.objective = path_node.objective;
         // add this node to the terminal list
         terminal_nodes.insert(&path_node);
     }
@@ -409,7 +409,7 @@ struct TreeStruct {
                     // if this path ends the battle at the best possible objective,
                     // choose and and don't evaluate other decisions
                     if (end_turn_node.IsBattleDone() &&
-                            end_turn_node.composite_objective ==
+                            end_turn_node.objective ==
                             max_top_objective) {
                         SelectTerminalDecisionPath(top_node, end_turn_node);
                         return;
@@ -445,7 +445,7 @@ struct TreeStruct {
                             // if this is the best possible objective,
                             // don't process any further choices
                             if (new_node.IsBattleDone() &&
-                                    new_node.composite_objective ==
+                                    new_node.objective ==
                                     max_top_objective) {
                                 SelectTerminalDecisionPath(top_node, new_node);
                                 return;
@@ -489,7 +489,7 @@ struct TreeStruct {
                                 // if this is the best possible objective,
                                 // don't process any further choices
                                 if (new_node.IsBattleDone() &&
-                                        new_node.composite_objective ==
+                                        new_node.objective ==
                                         max_top_objective) {
                                     SelectTerminalDecisionPath(top_node, new_node);
                                     return;
@@ -516,7 +516,7 @@ struct TreeStruct {
                         // if this is the best possible objective,
                         // don't process any further choices
                         if (new_node.IsBattleDone() &&
-                                new_node.composite_objective ==
+                                new_node.objective ==
                                 max_top_objective) {
                             SelectTerminalDecisionPath(top_node, new_node);
                             return;
@@ -541,7 +541,7 @@ struct TreeStruct {
                         // if this is the best possible objective,
                         // don't process any further choices
                         if (new_node.IsBattleDone() &&
-                                new_node.composite_objective ==
+                                new_node.objective ==
                                 max_top_objective) {
                             SelectTerminalDecisionPath(top_node, new_node);
                             return;
@@ -572,7 +572,7 @@ struct TreeStruct {
                 continue;
             }
             if (best_dead_node == nullptr ||
-                    node.composite_objective > best_dead_node->composite_objective) {
+                    node.objective > best_dead_node->objective) {
                 if (best_dead_node != nullptr) {
                     bad_node[best_dead_node_index] = true;
                 }
@@ -676,7 +676,7 @@ struct TreeStruct {
         }
         // calculate composite objective of all nodes still in tree
         //top_node.PrintTree();
-        top_node.CalculateCompositeObjectiveOfChildren();
+        top_node.CalculateObjectiveOfChildren();
         //top_node.PrintTree();
         for (std::size_t i = 0; i < ending_node.size(); ++i) {
             if (bad_node[i]) {
@@ -734,7 +734,7 @@ struct TreeStruct {
                 }
             }
             new_node.StartBattle();
-            new_node.composite_objective = new_node.GetMaxFinalObjective();
+            new_node.objective = new_node.GetMaxFinalObjective();
             AddOptionalNode(new_node);
         }
     }
@@ -749,10 +749,10 @@ struct TreeStruct {
         outFile.close();
     }
     void VerifyCompositeObjective(const Node & node) {
-        double x = node.CalculateCompositeObjective();
-        if (x != node.composite_objective) {
+        double x = node.CalculateObjective();
+        if (x != node.objective) {
             printf("ERROR!  composite objective (%g) not as calculated (%g)\n",
-                node.composite_objective, x);
+                node.objective, x);
             node.PrintTree();
             exit(1);
         }
@@ -776,10 +776,10 @@ struct TreeStruct {
             auto & p = node_ptr->probability;
             while (node_ptr != nullptr) {
                 const auto & node = *node_ptr;
-                double x = node.CalculateCompositeObjective();
-                if (x != node.composite_objective) {
+                double x = node.CalculateObjective();
+                if (x != node.objective) {
                     printf("ERROR!  composite objective (%g) not as calculated (%g)\n",
-                        node.composite_objective, x);
+                        node.objective, x);
                     node.PrintTree();
                     exit(1);
                 }
@@ -910,7 +910,7 @@ struct TreeStruct {
         remaining_mob_hp = 0.0;
         for (auto & node_ptr : terminal_nodes) {
             // this is no longer true since we use mob hp in the calculation as well
-            /*if (node_ptr->hp != node_ptr->composite_objective) {
+            /*if (node_ptr->hp != node_ptr->objective) {
                 printf("ERROR\n");
             }*/
             auto & p = node_ptr->probability;
@@ -1115,9 +1115,9 @@ struct TreeStruct {
             if (node.child.size() == 1) {
                 auto & child = *node.child[0];
                 // if it's different, update and update parent
-                if (node.composite_objective != child.composite_objective ||
+                if (node.objective != child.objective ||
                     node.flag.tree_solved != child.flag.tree_solved) {
-                    node.composite_objective = child.composite_objective;
+                    node.objective = child.objective;
                     node.flag.tree_solved = child.flag.tree_solved;
                     DeleteChildren(node);
                     node_ptr = node.parent;
@@ -1129,10 +1129,10 @@ struct TreeStruct {
             // children and tree is solved iff all children are solved
             assert(node.child.size() > 1);
             if (node.HasPendingActions()) {
-                double x = node.CalculateCompositeObjective();
+                double x = node.CalculateObjective();
                 bool solved = node.AreChildrenSolved();
-                if (node.composite_objective != x || solved) {
-                    node.composite_objective = x;
+                if (node.objective != x || solved) {
+                    node.objective = x;
                     node.flag.tree_solved = solved;
                     DeleteChildren(node);
                     node_ptr = node.parent;
@@ -1154,15 +1154,15 @@ struct TreeStruct {
                 auto & this_child = *this_child_ptr;
                 if (this_child.flag.tree_solved) {
                     if (!solved_children ||
-                        this_child.composite_objective > max_solved_objective) {
-                        max_solved_objective = this_child.composite_objective;
+                        this_child.objective > max_solved_objective) {
+                        max_solved_objective = this_child.objective;
                         max_solved_objective_ptr = &this_child;
                     }
                     solved_children = true;
                 } else {
                     if (!unsolved_children ||
-                        this_child.composite_objective > max_unsolved_objective) {
-                        max_unsolved_objective = this_child.composite_objective;
+                        this_child.objective > max_unsolved_objective) {
+                        max_unsolved_objective = this_child.objective;
                     }
                     unsolved_children = true;
                 }
@@ -1182,18 +1182,18 @@ struct TreeStruct {
                 node.child.resize(1);
                 node.child[0] = &child;
                 node.flag.tree_solved = true;
-                assert(child.composite_objective == max_solved_objective);
-                node.composite_objective = max_solved_objective;
+                assert(child.objective == max_solved_objective);
+                node.objective = max_solved_objective;
                 DeleteChildren(node);
                 node_ptr = node.parent;
                 continue;
             }
             // (2) if no children are solved, objective is the highest child objective
             if (!solved_children) {
-                if (node.composite_objective != max_unsolved_objective) {
-                    assert(node.composite_objective > max_unsolved_objective);
+                if (node.objective != max_unsolved_objective) {
+                    assert(node.objective > max_unsolved_objective);
                     //printf("DEBUG: Objective went down\n");
-                    node.composite_objective = max_unsolved_objective;
+                    node.objective = max_unsolved_objective;
                     node_ptr = node.parent;
                     continue;
                 }
@@ -1214,7 +1214,7 @@ struct TreeStruct {
                     if ((this_child.flag.tree_solved &&
                         &this_child != max_solved_objective_ptr) ||
                         (!this_child.flag.tree_solved &&
-                            this_child.composite_objective <= max_solved_objective)) {
+                            this_child.objective <= max_solved_objective)) {
                         DeleteNodeAndChildren(this_child);
                         node.child.erase(node.child.begin() + i);
                     }
@@ -1223,7 +1223,7 @@ struct TreeStruct {
             // if path is now solved, mark it as such
             if (solved_children && node.child.size() == 1) {
                 node.flag.tree_solved = true;
-                node.composite_objective = max_solved_objective;
+                node.objective = max_solved_objective;
                 DeleteChildren(node);
                 node_ptr = node.parent;
                 continue;
@@ -1232,10 +1232,10 @@ struct TreeStruct {
             assert(max_unsolved_objective > max_solved_objective);
             // if objective changed, update parents
             double x = std::max(max_unsolved_objective, max_solved_objective);
-            assert(max_unsolved_objective <= node.composite_objective);
-            if (max_unsolved_objective != node.composite_objective) {
-                assert(max_unsolved_objective < node.composite_objective);
-                node.composite_objective = max_unsolved_objective;
+            assert(max_unsolved_objective <= node.objective);
+            if (max_unsolved_objective != node.objective) {
+                assert(max_unsolved_objective < node.objective);
+                node.objective = max_unsolved_objective;
                 DeleteChildren(node);
                 node_ptr = node.parent;
                 continue;
@@ -1375,7 +1375,7 @@ struct TreeStruct {
                 std::size_t tree_nodes =
                     1 + created_node_count - deleted_nodes.size();
                 std::cout << "Tree stats: maxobj=" <<
-                    top_node_ptr->composite_objective;
+                    top_node_ptr->objective;
                 if (est_obj_result.first > 0.0) {
                     std::cout << ", estobj=" <<
                         (est_obj_result.second / est_obj_result.first);
