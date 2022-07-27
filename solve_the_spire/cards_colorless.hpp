@@ -30,7 +30,10 @@ const Card card_dark_shackles = {
 
 // finesse
 
-// flash of steel
+const Card card_flash_of_steel = {
+    "Flash of Steel", 0, 0, nullptr,
+    {.attack = 1, .uncommon = 1, .colorless = 1},
+    {{kActionAttack, 3, 1}, {kActionDrawCards, 1}}};
 
 // forethought
 
