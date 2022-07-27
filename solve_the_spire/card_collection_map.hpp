@@ -192,6 +192,18 @@ struct CardCollectionPtr {
         Clear();
         AddDeck(that);
     }
+    // upgrade all cards that can be upgraded
+    void UpgradeAll() {
+        for (auto & deck_item : *this) {
+            auto index = deck_item.first;
+            auto count = deck_item.second;
+            const auto & card = *card_map[index];
+            if (card.upgraded_version) {
+                AddCard(*card.upgraded_version, count);
+                RemoveCard(index, count);
+            }
+        }
+    }
     // range iterator loops through cards in deck
     std::vector<deck_item_t>::const_iterator begin() const {
         return node_ptr->collection.card.begin();
