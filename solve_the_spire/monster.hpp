@@ -66,9 +66,11 @@ struct Monster {
     // construct from base monster
     Monster(const BaseMonster & base_) {
         base = &base_;
-        hp = base->hp_range.first;
+        hp = (base->hp_range.first + base->hp_range.second) / 2;
         max_hp = hp;
-        last_intent[0] = 255;
+        for (auto & intent : last_intent) {
+            intent = 255;
+        }
         block = 0;
         buff = BuffState();
     }
@@ -179,15 +181,17 @@ std::vector<std::pair<double, Monster>> GenerateMob(const BaseMonster & base) {
     // if we're just using an average, return a single mob
     if (normalize_mob_variations) {
         result.push_back(std::pair<double, Monster>(1.0, Monster(base)));
-        result.rbegin()->second.hp =
-            (base.hp_range.first + base.hp_range.second) / 2;
+        //result.rbegin()->second.max_hp =
+        //    (base.hp_range.first + base.hp_range.second) / 2;
+        //result.rbegin()->second.hp = result.rbegin()->second.max_hp;
         return result;
     }
     // else generate all possible HPs with equal probability
     uint16_t count = base.hp_range.second - base.hp_range.first + 1;
     for (int i = 0; i < count; ++i) {
         result.push_back(std::pair<double, Monster>(1.0 / count, Monster(base)));
-        result.rbegin()->second.hp = base.hp_range.first + i;
+        result.rbegin()->second.max_hp = base.hp_range.first + i;
+        result.rbegin()->second.hp = result.rbegin()->second.max_hp;
     }
     return result;
 }
@@ -364,15 +368,14 @@ BaseMonster base_mob_green_louse = {
 IntentPossibilites GetIntentLagavulin(Monster & mob) {
     IntentPossibilites result;
     // sleep first
-    if (mob.last_intent[0] == 255) {
+    if (mob.last_intent[2] == 255 && mob.hp == mob.max_hp) {
         mob.block = 8;
         mob.buff[kBuffMetallicize] = 8;
-        result.push_back(std::pair<double, uint8_t>(1.0, 0));
-    } else if (mob.hp == mob.max_hp && mob.last_intent[0] == 0) {
         result.push_back(std::pair<double, uint8_t>(1.0, 0));
     } else if (mob.last_intent[0] == 1 && mob.last_intent[1] == 1) {
         result.push_back(std::pair<double, uint8_t>(1.0, 2));
     } else {
+        mob.block = 0;
         mob.buff[kBuffMetallicize] = 0;
         result.push_back(std::pair<double, uint8_t>(1.0, 1));
     }
