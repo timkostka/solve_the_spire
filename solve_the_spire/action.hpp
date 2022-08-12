@@ -49,15 +49,15 @@ enum ActionType : uint8_t {
     // apply block
     // first argument is block amount
     kActionBlock,
-    // apply a buff to the player
+    // apply a buff/debuff to self
     // first argument is buff type
     // second argument is buff amount
     kActionBuff,
-    // apply a debuff/buff to a single enemy
+    // apply a debuff/buff to others
     // first argument is buff type
     // second argument is buff amount
     kActionDebuff,
-    // apply a debuff/buff to all enemies
+    // apply a debuff/buff to all others
     // first argument is buff type
     // second argument is buff amount
     kActionDebuffAll,

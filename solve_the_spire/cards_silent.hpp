@@ -177,7 +177,7 @@ const Card card_footwork_plus = {
     {.power = 1, .uncommon = 1, .silent = 1},
     {{kActionBuff, kBuffDexterity, 3}, {kActionNone}}};
 const Card card_footwork = {
-    "Footwork", 1, 1, & card_footwork_plus,
+    "Footwork", 1, 1, &card_footwork_plus,
     {.power = 1, .uncommon = 1, .silent = 1},
     {{kActionBuff, kBuffDexterity, 2}, {kActionNone}}};
 

@@ -95,7 +95,7 @@ const Card card_crush_joints = {
 //    {.attack = 1, .targeted = 1, .common = 1, .watcher = 1},
 //    {{kActionAttack, 9, 1}, {kActionScry, 3}, {kActionDrawCards, 1}, {kActionNone}}};
 //const Card card_cut_through_fate = {
-//    "Cut Through Fate", 1, 1, & card_cut_through_fate_plus,
+//    "Cut Through Fate", 1, 1, &card_cut_through_fate_plus,
 //    {.attack = 1, .targeted = 1, .common = 1, .watcher = 1},
 //    {{kActionAttack, 7, 1}, {kActionScry, 2}, {kActionDrawCards, 1}, {kActionNone}}};
 

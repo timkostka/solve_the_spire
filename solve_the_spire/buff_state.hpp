@@ -26,11 +26,14 @@ enum BuffType : uint8_t {
     kBuffBrutality,
     kBuffDemonForm,
     kBuffNoxiousFumes,
+    kBuffNoDraw,
+    kBuffCombustHpLoss,
+    kBuffCombustDamage,
     // must be at end (used to get number of buffs and length of array)
     kBuffFinal,
 };
 
-// list of positive buffs
+// list of strictly positive buffs
 const BuffType positive_buffs[] = {
     kBuffStrength,
     kBuffDexterity,
@@ -45,9 +48,10 @@ const BuffType positive_buffs[] = {
     kBuffDemonForm,
     kBuffNoxiousFumes,
     kBuffRegenerate,
+    kBuffCombustDamage,
 };
 
-// list of negative buffs
+// list of strictly negative buffs
 const BuffType negative_buffs[] = {
     kBuffWeak,
     kBuffFrail,
@@ -59,6 +63,8 @@ const BuffType negative_buffs[] = {
 // list of neutral buffs
 const BuffType ambiguous_buffs[] = {
     kBuffBrutality,
+    kBuffNoDraw,
+    kBuffCombustHpLoss,
 };
 
 // number of stacks of each buff/debuff

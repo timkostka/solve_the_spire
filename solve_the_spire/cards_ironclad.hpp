@@ -29,7 +29,7 @@ const Card card_armaments_plus = {
     {.skill = 1, .common = 1, .ironclad = 1},
     {{kActionBlock, 5}, {kUpgradeAllCardsInHand}, {kActionNone}}};
 const Card card_armaments = {
-    "Armaments", 1, 1, & card_armaments_plus,
+    "Armaments", 1, 1, &card_armaments_plus,
     {.skill = 1, .target_card_in_hand = 1, .common = 1, .ironclad = 1},
     {{kActionBlock, 5}, {kUpgradeOneCardInHand}, {kActionNone}}};
 
@@ -38,7 +38,7 @@ const Card card_body_slam_plus = {
     {.attack = 1, .targeted = 1, .common = 1, .ironclad = 1},
     {{kActionAttackBodySlam}, {kActionNone}}};
 const Card card_body_slam = {
-    "Body Slam", 1, 1, & card_body_slam_plus,
+    "Body Slam", 1, 1, &card_body_slam_plus,
     {.attack = 1, .targeted = 1, .common = 1, .ironclad = 1},
     {{kActionAttackBodySlam}, {kActionNone}}};
 
@@ -107,7 +107,7 @@ const Card card_pommel_strike_plus = {
     {.attack = 1, .targeted = 1, .strike = 1, .common = 1, .ironclad = 1},
     {{kActionAttack, 10, 1}, {kActionDrawCards, 2}, {kActionNone}}};
 const Card card_pommel_strike = {
-    "Pommel Strike", 1, 1, & card_pommel_strike_plus,
+    "Pommel Strike", 1, 1, &card_pommel_strike_plus,
     {.attack = 1, .targeted = 1, .strike = 1, .common = 1, .ironclad = 1},
     {{kActionAttack, 9, 1}, {kActionDrawCards, 1}, {kActionNone}}};
 
@@ -116,7 +116,7 @@ const Card card_shrug_it_off_plus = {
     {.skill = 1, .common = 1, .ironclad = 1},
     {{kActionBlock, 11}, {kActionDrawCards, 1}, {kActionNone}}};
 const Card card_shrug_it_off = {
-    "Shrug It Off", 1, 1, & card_shrug_it_off_plus,
+    "Shrug It Off", 1, 1, &card_shrug_it_off_plus,
     {.skill = 1, .common = 1, .ironclad = 1},
     {{kActionBlock, 8}, {kActionDrawCards, 1}, {kActionNone}}};
 
@@ -162,11 +162,25 @@ const Card card_wild_strike = {
 
 // uncommon ironclad cards
 
-// battle trance
+const Card card_battle_trance_plus = {
+    "Battle Trance+", 0, 0, nullptr,
+    {.skill = 1, .uncommon = 1, .ironclad = 1},
+    {{kActionDrawCards, 4}, {kActionBuff, kBuffNoDraw, 1}, {kActionNone}}};
+const Card card_battle_trance = {
+    "Battle Trance", 0, 0, &card_battle_trance_plus,
+    {.skill = 1, .uncommon = 1, .ironclad = 1},
+    {{kActionDrawCards, 3}, {kActionBuff, kBuffNoDraw, 1}, {kActionNone}}};
 
 // blood for blood
 
-// bloodletting
+const Card card_bloodletting_plus = {
+    "Bloodletting+", 0, 0, nullptr,
+    {.skill = 1, .uncommon = 1, .ironclad = 1},
+    {{kActionLoseHP, 3}, {kActionGainEnergy, 3}, {kActionNone}}};
+const Card card_bloodletting = {
+    "Bloodletting", 0, 0, &card_bloodletting_plus,
+    {.skill = 1, .uncommon = 1, .ironclad = 1},
+    {{kActionLoseHP, 3}, {kActionGainEnergy, 2}, {kActionNone}}};
 
 // burning pact
 
@@ -179,7 +193,14 @@ const Card card_carnage = {
     {.attack = 1, .targeted = 1, .ethereal = 1, .uncommon = 1, .ironclad = 1},
     {{kActionAttack, 20, 1}, {kActionNone}}};
 
-// combust
+const Card card_combust_plus = {
+    "Combust+", 1, 1, nullptr,
+    {.power = 1, .uncommon = 1, .ironclad = 1},
+    {{kActionBuff, kBuffCombustHpLoss, 1}, {kActionBuff, kBuffCombustDamage, 7}, {kActionNone}}};
+const Card card_combust = {
+    "Combust", 1, 1, &card_combust_plus,
+    {.power = 1, .uncommon = 1, .ironclad = 1},
+    {{kActionBuff, kBuffCombustHpLoss, 1}, {kActionBuff, kBuffCombustDamage, 5}, {kActionNone}}};
 
 // dark embrace
 
@@ -188,7 +209,7 @@ const Card card_disarm_plus = {
     {.skill = 1, .exhausts = 1, .uncommon = 1, .ironclad = 1},
     {{kActionDebuff, kBuffStrength, -3}, {kActionNone}}};
 const Card card_disarm = {
-    "Disarm", 1, 1, & card_disarm_plus,
+    "Disarm", 1, 1, &card_disarm_plus,
     {.skill = 1, .exhausts = 1, .uncommon = 1, .ironclad = 1},
     {{kActionDebuff, kBuffStrength, -2}, {kActionNone}}};
 
@@ -211,7 +232,7 @@ const Card card_ghostly_armor_plus = {
     {.skill = 1, .ethereal = 1, .uncommon = 1, .ironclad = 1},
     {{kActionBlock, 13}, {kActionNone}}};
 const Card card_ghostly_armor = {
-    "Ghostly Armor", 1, 1, & card_ghostly_armor_plus,
+    "Ghostly Armor", 1, 1, &card_ghostly_armor_plus,
     {.skill = 1, .ethereal = 1, .uncommon = 1, .ironclad = 1},
     {{kActionBlock, 10}, {kActionNone}}};
 
@@ -240,7 +261,7 @@ const Card card_intimidate_plus = {
     {.skill = 1, .uncommon = 1, .ironclad = 1},
     {{kActionDebuffAll, kBuffWeak, 2}, {kActionNone}}};
 const Card card_intimidate = {
-    "Intimidate", 0, 0, & card_intimidate_plus,
+    "Intimidate", 0, 0, &card_intimidate_plus,
     {.skill = 1, .uncommon = 1, .ironclad = 1},
     {{kActionDebuffAll, kBuffWeak, 1}, {kActionNone}}};
 
@@ -293,7 +314,26 @@ const Card card_reckless_charge = {
 
 // rupture
 
-// searing blow
+const Card card_searing_blow_plus4 = {
+    "Searing Blow+", 2, 2, nullptr,
+    {.attack = 1, .targeted = 1, .uncommon = 1, .ironclad = 1},
+    {{kActionAttack, 34, 1}, {kActionNone}}};
+const Card card_searing_blow_plus3 = {
+    "Searing Blow+", 2, 2, &card_searing_blow_plus4,
+    {.attack = 1, .targeted = 1, .uncommon = 1, .ironclad = 1},
+    {{kActionAttack, 27, 1}, {kActionNone}}};
+const Card card_searing_blow_plus2 = {
+    "Searing Blow+", 2, 2, &card_searing_blow_plus3,
+    {.attack = 1, .targeted = 1, .uncommon = 1, .ironclad = 1},
+    {{kActionAttack, 21, 1}, {kActionNone}}};
+const Card card_searing_blow_plus = {
+    "Searing Blow+", 2, 2, &card_searing_blow_plus2,
+    {.attack = 1, .targeted = 1, .uncommon = 1, .ironclad = 1},
+    {{kActionAttack, 16, 1}, {kActionNone}}};
+const Card card_searing_blow = {
+    "Searing Blow", 2, 2, &card_searing_blow_plus,
+    {.attack = 1, .targeted = 1, .uncommon = 1, .ironclad = 1},
+    {{kActionAttack, 12, 1}, {kActionNone}}};
 
 // second wind
 
@@ -302,7 +342,7 @@ const Card card_seeing_red_plus = {
     {.skill = 1, .exhausts = 1, .uncommon = 1, .ironclad = 1},
     {{kActionGainEnergy, 2}, {kActionNone}}};
 const Card card_seeing_red = {
-    "Seeing Red", 1, 1, & card_seeing_red_plus,
+    "Seeing Red", 1, 1, &card_seeing_red_plus,
     {.skill = 1, .exhausts = 1, .uncommon = 1, .ironclad = 1},
     {{kActionGainEnergy, 2}, {kActionNone}}};
 
@@ -315,7 +355,7 @@ const Card card_shockwave_plus = {
     {.skill = 1, .targeted = 1, .exhausts = 1, .uncommon = 1, .ironclad = 1},
     {{kActionDebuffAll, kBuffWeak, 5}, {kActionDebuffAll, kBuffVulnerable, 5}, {kActionNone}}};
 const Card card_shockwave = {
-    "Shockwave", 2, 2, & card_shockwave_plus,
+    "Shockwave", 2, 2, &card_shockwave_plus,
     {.skill = 1, .targeted = 1, .exhausts = 1, .uncommon = 1, .ironclad = 1},
     {{kActionDebuffAll, kBuffWeak, 3}, {kActionDebuffAll, kBuffVulnerable, 3}, {kActionNone}}};
 
@@ -326,7 +366,7 @@ const Card card_uppercut_plus = {
     {.attack = 1, .targeted = 1, .uncommon = 1, .ironclad = 1},
     {{kActionAttack, 13, 1}, {kActionDebuff, kBuffWeak, 2}, {kActionDebuff, kBuffVulnerable, 2}, {kActionNone}}};
 const Card card_uppercut = {
-    "Uppercut", 2, 2, & card_uppercut_plus,
+    "Uppercut", 2, 2, &card_uppercut_plus,
     {.attack = 1, .targeted = 1, .uncommon = 1, .ironclad = 1},
     {{kActionAttack, 13, 1}, {kActionDebuff, kBuffWeak, 1}, {kActionDebuff, kBuffVulnerable, 1}, {kActionNone}}};
 
@@ -335,7 +375,7 @@ const Card card_whirlwind_plus = {
     {.attack = 1, .x_cost = 1, .uncommon = 1, .ironclad = 1},
     {{kActionAttackAllWhirlwind, 8}, {kActionNone}}};
 const Card card_whirlwind = {
-    "Whirlwind", 0, 0, & card_whirlwind_plus,
+    "Whirlwind", 0, 0, &card_whirlwind_plus,
     {.attack = 1, .x_cost = 1, .uncommon = 1, .ironclad = 1},
     {{kActionAttackAllWhirlwind, 5}, {kActionNone}}};
 
@@ -401,7 +441,7 @@ const Card card_fiend_fire_plus = {
     {.attack = 1, .targeted = 1, .exhausts = 1, .rare = 1, .ironclad = 1},
     {{kActionAttackFiendFire, 10}, {kActionNone}}};
 const Card card_fiend_fire = {
-    "Fiend Fire", 2, 2, & card_fiend_fire_plus,
+    "Fiend Fire", 2, 2, &card_fiend_fire_plus,
     {.attack = 1, .targeted = 1, .exhausts = 1, .rare = 1, .ironclad = 1},
     {{kActionAttackFiendFire, 7}, {kActionNone}}};
 
@@ -410,7 +450,7 @@ const Card card_immolate_plus = {
     {.attack = 1, .targeted = 1, .rare = 1, .ironclad = 1},
     {{kActionAttack, 28, 1}, {kActionAddCardToDiscardPile, card_burn.GetIndex(), 1}, {kActionNone}}};
 const Card card_immolate = {
-    "Immolate", 2, 2, & card_immolate_plus,
+    "Immolate", 2, 2, &card_immolate_plus,
     {.attack = 1, .targeted = 1, .rare = 1, .ironclad = 1},
     {{kActionAttack, 21, 1}, {kActionAddCardToDiscardPile, card_burn.GetIndex(), 1}, {kActionNone}}};
 
@@ -419,7 +459,7 @@ const Card card_impervious_plus = {
     {.skill = 1, .exhausts = 1, .rare = 1, .ironclad = 1},
     {{kActionBlock, 40}, {kActionNone}}};
 const Card card_impervious = {
-    "Impervious", 2, 2, & card_impervious_plus,
+    "Impervious", 2, 2, &card_impervious_plus,
     {.skill = 1, .exhausts = 1, .rare = 1, .ironclad = 1},
     {{kActionBlock, 30}, {kActionNone}}};
 

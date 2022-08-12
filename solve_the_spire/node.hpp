@@ -840,13 +840,39 @@ struct Node {
             // remove them from hand
             hand = new_hand;
         }
+        // combust
+        if (buff[kBuffCombustHpLoss]) {
+            TakeDamage(buff[kBuffCombustHpLoss]);
+            for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
+                auto & mob = monster[i];
+                if (!mob.Exists()) {
+                    continue;
+                }
+                mob.TakeDamage(buff[kBuffCombustDamage], false);
+            }
+            if (!MobsAlive()) {
+                FinishBattle();
+                return;
+            }
+        }
+        // orichalcum
         if (relics.orichalcum && block == 0) {
             block = 6;
         }
+        // metallicize
         if (buff[kBuffMetallicize]) {
             block += buff[kBuffMetallicize];
         }
-        // remove block on mobs
+        // reduce no draw
+        if (buff[kBuffNoDraw]) {
+            --buff[kBuffNoDraw];
+        }
+
+        ///////////////////////
+        // START OF MOB TURN //
+        ///////////////////////
+
+        // apply poison to mobs
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             auto & mob = monster[i];
             if (!mob.Exists()) {
@@ -1385,11 +1411,13 @@ struct Node {
                 }
                 case kActionDrawCards:
                 {
-                    assert(pending_action[MAX_PENDING_ACTIONS - 1].type == kActionNone);
-                    for (auto & this_action : pending_action) {
-                        if (this_action.type == kActionNone) {
-                            this_action = action;
-                            break;
+                    if (!buff[kBuffNoDraw]) {
+                        assert(pending_action[MAX_PENDING_ACTIONS - 1].type == kActionNone);
+                        for (auto & this_action : pending_action) {
+                            if (this_action.type == kActionNone) {
+                                this_action = action;
+                                break;
+                            }
                         }
                     }
                     break;
