@@ -192,6 +192,11 @@ struct CardCollectionPtr {
         Clear();
         AddDeck(that);
     }
+    // upgrade a specific card
+    void UpgradeCard(const Card & card, card_count_t count = 1) {
+        RemoveCard(card, count);
+        AddCard(*card.upgraded_version, count);
+    }
     // upgrade all cards that can be upgraded
     void UpgradeAll() {
         for (auto & deck_item : *this) {
