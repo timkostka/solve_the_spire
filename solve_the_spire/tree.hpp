@@ -390,6 +390,17 @@ struct TreeStruct {
         std::vector<Node *> decision_nodes;
         decision_nodes.push_back(&top_node);
         const double max_top_objective = top_node.GetMaxFinalObjective();
+        // shortcut this by trying to kill the mob with the current hand
+        // find out max damage we can do with current hand
+        unsigned int mob_hp = 0;
+        for (auto & mob : top_node.monster) {
+            mob_hp += mob.hp;
+        }
+        //if (mob_hp <= top_node.hand.GetMaxSingleTargetDamage(top_node.energy)) {
+        //    printf("shortcut!\n");
+        //}
+        // TODO: determine if order matters
+        bool order_matters = true;
         // nodes at which the player no longer has a choice
         // (e.g. after pressing end turn or after player is dead or all mobs are dead)
         std::vector<Node *> ending_node;
@@ -419,13 +430,14 @@ struct TreeStruct {
                 // play all possible unique cards
                 for (auto & deck_item : this_node.hand) {
                     // alias the card
-                    const card_index_t & card_index = deck_item.first;
+                    const card_index_t &card_index = deck_item.first;
                     const Card & card = *card_map[card_index];
-                    if (&card == &card_offering) {
-                        printf("");
-                    }
                     // skip this card if it's unplayable or too expensive
                     if (card.flag.unplayable || card.cost > this_node.energy) {
+                        continue;
+                    }
+                    // if order doesn't matter, only play cards with increasing card index
+                    if (!order_matters && &this_node != &top_node &&card_index < this_node.parent_decision.argument[0]) {
                         continue;
                     }
                     // play this card
@@ -1486,4 +1498,3 @@ struct TreeStruct {
         printf("\nPROFILE: %s\n", GetProfileLine().c_str());
     }
 };
-

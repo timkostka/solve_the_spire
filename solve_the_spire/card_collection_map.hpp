@@ -397,6 +397,41 @@ struct CardCollectionPtr {
         // return result
         return result;
     }
+    // return the max damage we can do with this hand against a single target
+    // (this is allowed to underestimate the amount of damage done)
+    unsigned int GetMaxSingleTargetDamage(uint8_t energy) {
+        unsigned int damage = 0;
+        for (auto & item : node_ptr->collection.card) {
+            auto & card = *card_map[item.first];
+            if (!card.flag.attack) {
+                continue;
+            }
+            // max cards to play
+            uint8_t play_count = energy / card.cost;
+            if (play_count > item.second) {
+                play_count = item.second;
+            }
+            if (play_count == 0) {
+                continue;
+            }
+            unsigned int card_damage = 0;
+            for (auto & action : card.action) {
+                if (action.type == kActionNone) {
+                    break;
+                }
+                if (action.type == kActionAttack || action.type == kActionAttackAll) {
+                    card_damage += action.arg[0] * action.arg[1];
+                    break;
+                }
+            }
+            damage += play_count * card_damage;
+            energy -= play_count * card.cost;
+            if (energy == 0) {
+                break;
+            }
+        }
+        return damage;
+    }
 };
 
 // empty card collection

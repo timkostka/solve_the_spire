@@ -884,10 +884,6 @@ struct Node {
             }
         }
 
-        ///////////////////////
-        // START OF MOB TURN //
-        ///////////////////////
-
         // remove block on mobs
         for (int i = 0; i < MAX_MOBS_PER_NODE; ++i) {
             auto & mob = monster[i];
